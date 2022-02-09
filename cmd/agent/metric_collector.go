@@ -106,7 +106,7 @@ func (mc *collector) Report() {
 		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
-			log.Fatalf("server return error for url %s %s", currentUrl, resp.StatusCode)
+			log.Fatalf("server return error for url %s %d", currentUrl, resp.StatusCode)
 		}
 	}
 	log.Println("Reports ended")
