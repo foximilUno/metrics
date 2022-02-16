@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/foximilUno/metrics/internal/repositories"
 	"log"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -18,7 +20,7 @@ var allowedTypes = map[string]string{
 	"counter": "counter",
 }
 
-func SaveMetrics() http.HandlerFunc {
+func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		//check method only POST
 		if r.Method != http.MethodPost {
@@ -43,14 +45,29 @@ func SaveMetrics() http.HandlerFunc {
 			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", 400)
 			return
 		}
-		//check allowed types
-		if _, ok := allowedTypes[segments[1]]; !ok {
-			http.Error(w,
-				fmt.Sprintf("Bad request: %s cant be, use %s", segments[1], reflect.ValueOf(allowedTypes).MapKeys()),
-				400)
+
+		switch segments[1] {
+		case "gauge":
+			val, err := strconv.ParseFloat(segments[3], 64)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("%s некорректного типа: counter: float64", segments[2]), 400)
+				return
+			}
+			s.SaveGauge(segments[2], val)
+		case "counter":
+			val, err := strconv.ParseInt(segments[3], 10, 64)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("%s некорректного типа: counter: int64", segments[2]), 400)
+				return
+			}
+			s.SaveCounter(segments[2], val)
+		default:
+			http.Error(w, fmt.Sprintf("Bad request: %s cant be, use %s", segments[1], reflect.ValueOf(allowedTypes).MapKeys()), 400)
 			return
 		}
+
 		log.Printf("invoked update metric with type \"%s\" witn name \"%s\" with value \"%s\"", segments[1], segments[2], segments[3])
+
 		w.WriteHeader(200)
 	}
 }

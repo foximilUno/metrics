@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"time"
 )
 
 const (
@@ -33,19 +34,19 @@ func NewMetricCollector(host string, port string) *collector {
 	}
 }
 
-func (m *collector) addGauge(name string, value uint64) {
-	m.getEntity(name, gauge).entityValue = value
+func (mc *collector) addGauge(name string, value uint64) {
+	mc.getEntity(name, gauge).entityValue = value
 }
 
-func (m *collector) increaseCounter(name string) {
-	m.getEntity(name, counter).entityValue++
+func (mc *collector) increaseCounter(name string) {
+	mc.getEntity(name, counter).entityValue++
 }
 
-func (m *collector) getEntity(name string, typeentity string) *MetricEntity {
-	if _, ok := m.data[name]; !ok {
-		m.data[name] = &MetricEntity{typeentity, name, 0}
+func (mc *collector) getEntity(name string, typeentity string) *MetricEntity {
+	if _, ok := mc.data[name]; !ok {
+		mc.data[name] = &MetricEntity{typeentity, name, 0}
 	}
-	return m.data[name]
+	return mc.data[name]
 }
 
 func (mc *collector) Collect() {
@@ -77,7 +78,8 @@ func (mc *collector) Collect() {
 	mc.addGauge("StackInuse", stats.StackInuse)
 	mc.addGauge("StackSys", stats.StackSys)
 	mc.addGauge("Sys", stats.Sys)
-	mc.addGauge("RandomValue", rand.Uint64())
+	rand.Seed(time.Now().UnixNano())
+	mc.addGauge("RandomValue", uint64(rand.Intn(10-1)+1))
 
 	mc.increaseCounter("PollCount")
 
@@ -94,19 +96,19 @@ func (mc *collector) Report() {
 		req, err := http.NewRequest(http.MethodPost, currentUrl, nil)
 		if err != nil {
 			//TODO what to do)) just logging right now
-			log.Fatal("error while make request", err)
+			log.Println("error while make request", err)
 		}
 		req.Header.Set("Content-Type", "text/plain")
 
 		resp, err := client.Do(req)
 		if err != nil {
 			//TODO what to do)) just logging right now
-			log.Fatal("error while send request", err)
+			log.Println("error while send request", err)
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
-			log.Fatalf("server return error for url %s %d", currentUrl, resp.StatusCode)
+			log.Printf("server return error for url %s %d\n", currentUrl, resp.StatusCode)
 		}
 	}
 	log.Println("Reports ended")
