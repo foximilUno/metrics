@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/xenolf/lego/log"
+	"github.com/foximilUno/metrics/internal/collector"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -50,7 +51,7 @@ func main() {
 	defer pollTicker.Stop()
 	defer reportTicker.Stop()
 
-	mc := NewMetricCollector(cfg.serverHost, cfg.serverPort)
+	mc := collector.NewMetricCollector(cfg.serverHost, cfg.serverPort)
 
 	for true {
 		select {

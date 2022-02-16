@@ -1,4 +1,4 @@
-package main
+package collector
 
 import (
 	"log"
@@ -93,14 +93,14 @@ func (mc *collector) Report() {
 		currentUrl := commonUrl + "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
 		req, err := http.NewRequest(http.MethodPost, currentUrl, nil)
 		if err != nil {
-			//TODO what to do)) while logging only
+			//TODO what to do)) just logging right now
 			log.Fatal("error while make request", err)
 		}
 		req.Header.Set("Content-Type", "text/plain")
 
 		resp, err := client.Do(req)
 		if err != nil {
-			//TODO what to do)) while logging only
+			//TODO what to do)) just logging right now
 			log.Fatal("error while send request", err)
 		}
 		defer resp.Body.Close()

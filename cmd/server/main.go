@@ -1,7 +1,9 @@
 package main
 
+import "github.com/foximilUno/metrics/internal/server"
+
 func main() {
 
-	NewMetricServer().ListenAndServe()
+	server.NewMetricServer().ListenAndServe()
 
 }
