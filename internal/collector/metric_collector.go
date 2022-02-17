@@ -79,7 +79,7 @@ func (mc *collector) Collect() {
 	mc.addGauge("StackSys", stats.StackSys)
 	mc.addGauge("Sys", stats.Sys)
 	rand.Seed(time.Now().UnixNano())
-	mc.addGauge("RandomValue", uint64(rand.Intn(10-1)+1))
+	mc.addGauge("RandomValue", rand.Uint64())
 
 	mc.increaseCounter("PollCount")
 
