@@ -27,6 +27,7 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 			http.Error(w, "Only POST allowed", 405)
 			return
 		}
+
 		//check content type only defaultApplicationType
 		if r.Header.Get("Content-type") != defaultApplicationType {
 			w.Header().Add("Allowed", "text/plain")
