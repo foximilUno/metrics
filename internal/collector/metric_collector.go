@@ -90,10 +90,10 @@ func (mc *collector) Report() {
 	log.Println("Report to server collect data")
 	client := http.Client{}
 
-	commonUrl := "http://" + mc.host + ":" + mc.port + "/update"
+	commonURL := "http://" + mc.host + ":" + mc.port + "/update"
 	for _, v := range mc.data {
-		currentUrl := commonUrl + "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
-		req, err := http.NewRequest(http.MethodPost, currentUrl, nil)
+		currentURL := commonURL + "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
+		req, err := http.NewRequest(http.MethodPost, currentURL, nil)
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Println("error while make request", err)
@@ -108,7 +108,7 @@ func (mc *collector) Report() {
 		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
-			log.Printf("server return error for url %s %d\n", currentUrl, resp.StatusCode)
+			log.Printf("server return error for url %s %d\n", currentURL, resp.StatusCode)
 		}
 	}
 	log.Println("Reports ended")

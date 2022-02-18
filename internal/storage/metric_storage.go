@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/foximilUno/metrics/internal/repositories"
 	"log"
 	"math"
 )
@@ -11,7 +12,7 @@ type MapStorage struct {
 	counters map[string]int64
 }
 
-func NewMapStorage() *MapStorage {
+func NewMapStorage() repositories.MetricSaver {
 	return &MapStorage{
 		make(map[string]float64),
 		make(map[string]int64)}

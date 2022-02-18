@@ -53,7 +53,7 @@ func main() {
 
 	mc := collector.NewMetricCollector(cfg.serverHost, cfg.serverPort)
 
-	for true {
+	for {
 		select {
 		case <-sigChan:
 			log.Println("Agent successfully shutdown")
