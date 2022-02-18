@@ -62,7 +62,6 @@ func main() {
 			mc.Collect()
 		case <-reportTicker.C:
 			mc.Report()
-		default:
 		}
 	}
 }
