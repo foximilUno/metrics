@@ -37,12 +37,13 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 
 		//check elements in path
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
-		if len(segments) != 4 {
-			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusNotFound)
+
+		if segments[0] != servicePath {
+			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
 			return
 		}
-		//check first path segment
-		if segments[0] != servicePath {
+
+		if len(segments) != 4 {
 			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
 			return
 		}
