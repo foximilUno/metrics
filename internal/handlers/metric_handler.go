@@ -11,11 +11,10 @@ import (
 )
 
 const (
-	defaultApplicationType = "text/plain"
-	getPath                = "value"
-	preHTML                = `<html><header></header><body><div><table border="solid"><caption>Metrics</caption><tr><th>metricName</th><th>metricVal</th></tr>`
-	postHTML               = `</table></div></body>`
-	trPattern              = `<tr><td><a href="/value/%s/%s">%s</a></td><td>%s</td></tr>`
+	//defaultApplicationType = "text/plain"
+	preHTML   = `<html><header></header><body><div><table border="solid"><caption>Metrics</caption><tr><th>metricName</th><th>metricVal</th></tr>`
+	postHTML  = `</table></div></body>`
+	trPattern = `<tr><td><a href="/value/%s/%s">%s</a></td><td>%s</td></tr>`
 )
 
 var allowedTypes = map[string]string{
@@ -30,12 +29,12 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		//check content type only defaultApplicationType
-		if r.Header.Get("Content-type") != defaultApplicationType {
-			w.Header().Add("Allowed", "text/plain")
-			http.Error(w, "Allowed text/plain only", http.StatusUnsupportedMediaType)
-			return
-		}
+		////check content type only defaultApplicationType
+		//if r.Header.Get("Content-type") != defaultApplicationType {
+		//	w.Header().Add("Allowed", "text/plain")
+		//	http.Error(w, "Allowed text/plain only", http.StatusUnsupportedMediaType)
+		//	return
+		//}
 
 		//check elements in path
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
@@ -109,7 +108,10 @@ func GetMetric(s repositories.MetricSaver) http.HandlerFunc {
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 		}
-		w.Write([]byte(result))
+		_, err = w.Write([]byte(result))
+		if err != nil {
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 	}
 }
@@ -127,7 +129,10 @@ func GetMetricsTable(s repositories.MetricSaver) http.HandlerFunc {
 			response = append(response, []byte(fmt.Sprintf(trPattern, "counter", v, v, n))...)
 		}
 		response = append(response, []byte(postHTML)...)
-		w.Write(response)
+		_, err := w.Write(response)
+		if err != nil {
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 	}
 }
