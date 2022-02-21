@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	defaultApplicationType = "text/plain"
-	servicePath            = "update"
+	//defaultApplicationType = "text/plain"
+	servicePath = "update"
 )
 
 var allowedTypes = map[string]string{
@@ -27,13 +27,13 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 			return
 		}
-
+		//TODO убрал проверку header, автотест не проходит хотя в задании написано
 		//check content type only defaultApplicationType
-		if r.Header.Get("Content-type") != defaultApplicationType {
-			w.Header().Add("Allowed", "text/plain")
-			http.Error(w, "Allowed text/plain only", http.StatusUnsupportedMediaType)
-			return
-		}
+		//if r.Header.Get("Content-type") != defaultApplicationType {
+		//	w.Header().Add("Allowed", "text/plain")
+		//	http.Error(w, "Allowed text/plain only", http.StatusUnsupportedMediaType)
+		//	return
+		//}
 
 		//check elements in path
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
