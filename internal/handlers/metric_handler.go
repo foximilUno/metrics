@@ -12,7 +12,10 @@ import (
 
 const (
 	defaultApplicationType = "text/plain"
-	servicePath            = "update"
+	getPath                = "value"
+	preHTML                = `<html><header></header><body><div><table border="solid"><caption>Metrics</caption><tr><th>metricName</th><th>metricVal</th></tr>`
+	postHTML               = `</table></div></body>`
+	trPattern              = `<tr><td><a href="/value/%s/%s">%s</a></td><td>%s</td></tr>`
 )
 
 var allowedTypes = map[string]string{
@@ -27,7 +30,6 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		//TODO убрал проверку header, автотест не проходит хотя в задании написано
 		//check content type only defaultApplicationType
 		if r.Header.Get("Content-type") != defaultApplicationType {
 			w.Header().Add("Allowed", "text/plain")
@@ -38,14 +40,13 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 		//check elements in path
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
 
-		if segments[0] != servicePath {
-			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusNotFound)
-			return
-		}
-
 		if len(segments) != 4 {
 			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
 			return
+		}
+
+		if len(segments[2]) == 0 {
+			http.Error(w, "metric name cant be empty", http.StatusBadRequest)
 		}
 
 		switch segments[1] {
@@ -71,5 +72,62 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 		log.Printf("invoked update metric with type \"%s\" witn name \"%s\" with value \"%s\"", segments[1], segments[2], segments[3])
 
 		w.WriteHeader(200)
+	}
+}
+
+func GetMetric(s repositories.MetricSaver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		//check elements in path
+		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
+
+		if len(segments) != 3 {
+			http.Error(w, "path must be pattern like /value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>", http.StatusBadRequest)
+			return
+		}
+
+		if len(segments[2]) == 0 {
+			http.Error(w, "metric name cant be empty", http.StatusBadRequest)
+			return
+		}
+
+		var result string
+		var err error
+		switch segments[1] {
+		case "gauge":
+			result, err = s.GetGaugeMetricAsString(segments[2])
+		case "counter":
+			result, err = s.GetCounterMetricAsString(segments[2])
+		default:
+			http.Error(w, fmt.Sprintf("Bad request: %s cant be, use %s", segments[1], reflect.ValueOf(allowedTypes).MapKeys()), http.StatusNotImplemented)
+			return
+		}
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		w.Write([]byte(result))
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func GetMetricsTable(s repositories.MetricSaver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var response []byte
+		response = append(response, []byte(preHTML)...)
+		for _, v := range s.GetGaugeMetricNames() {
+			n, _ := s.GetGaugeMetricAsString(v)
+			response = append(response, []byte(fmt.Sprintf(trPattern, "gauge", v, v, n))...)
+		}
+		for _, v := range s.GetCounterMetricNames() {
+			n, _ := s.GetCounterMetricAsString(v)
+			response = append(response, []byte(fmt.Sprintf(trPattern, "counter", v, v, n))...)
+		}
+		response = append(response, []byte(postHTML)...)
+		w.Write(response)
+		w.WriteHeader(http.StatusOK)
 	}
 }

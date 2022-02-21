@@ -27,7 +27,7 @@ func (srm *MapStorage) SaveCounter(name string, val int64) {
 		srm.counters[name] = 0
 	}
 
-	after, err := summWithCheck(srm.counters[name], val)
+	after, err := sumWithCheck(srm.counters[name], val)
 	if err != nil {
 		log.Printf("cant increase counter with name %s: %e\r\n", name, err)
 		return
@@ -36,7 +36,39 @@ func (srm *MapStorage) SaveCounter(name string, val int64) {
 	srm.counters[name] = after
 }
 
-func summWithCheck(var1 int64, var2 int64) (int64, error) {
+func (srm *MapStorage) GetGaugeMetricAsString(name string) (string, error) {
+	if val, ok := srm.gauges[name]; !ok {
+		return "", fmt.Errorf("cant find such metric with type gauge")
+	} else {
+		return fmt.Sprint(val), nil
+	}
+}
+
+func (srm *MapStorage) GetCounterMetricAsString(name string) (string, error) {
+	if val, ok := srm.counters[name]; !ok {
+		return "", fmt.Errorf("cant find such metric with type counter")
+	} else {
+		return fmt.Sprint(val), nil
+	}
+}
+
+func (srm *MapStorage) GetGaugeMetricNames() []string {
+	keys := make([]string, 0, len(srm.gauges))
+	for k := range srm.gauges {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (srm *MapStorage) GetCounterMetricNames() []string {
+	keys := make([]string, 0, len(srm.counters))
+	for k := range srm.counters {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func sumWithCheck(var1 int64, var2 int64) (int64, error) {
 	if math.MaxInt64-var1 >= var2 {
 		return var1 + var2, nil
 	} else {

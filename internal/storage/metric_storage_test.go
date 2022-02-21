@@ -207,7 +207,7 @@ func Test_summWithCheck(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("var1=%d,var2=%d", tt.var1, tt.var2), func(t *testing.T) {
-			_, e := summWithCheck(tt.var1, tt.var2)
+			_, e := sumWithCheck(tt.var1, tt.var2)
 			assert.Equal(t, tt.expectedError, e != nil)
 		})
 	}
