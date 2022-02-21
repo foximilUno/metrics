@@ -101,11 +101,14 @@ func (mc *collector) Report() {
 		req.Header.Set("Content-Type", "text/plain")
 
 		resp, err := client.Do(req)
+
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Println("error while send request", err)
 			return
 		}
+
+		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
 			log.Printf("server return error for url %s %d\n", currentURL, resp.StatusCode)
