@@ -18,12 +18,10 @@ func main() {
 	r := chi.NewRouter()
 
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/gauge/{metricName}/{metricValue}", handlers.SaveMetrics(storage))
-		r.Post("/counter/{metricName}/{metricValue}", handlers.SaveMetrics(storage))
+		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.SaveMetrics(storage))
 	})
 	r.Route("/value", func(r chi.Router) {
-		r.Get("/counter/{metricName}", handlers.GetMetric(storage))
-		r.Get("/gauge/{metricName}", handlers.GetMetric(storage))
+		r.Get("/{metricType}/{metricName}", handlers.GetMetric(storage))
 	})
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", handlers.GetMetricsTable(storage))
