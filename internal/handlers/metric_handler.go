@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	defaultApplicationType = "text/plain"
-	preHTML                = `<html><header></header><body><div><table border="solid"><caption>Metrics</caption><tr><th>metricName</th><th>metricVal</th></tr>`
-	postHTML               = `</table></div></body>`
-	trPattern              = `<tr><td><a href="/value/%s/%s">%s</a></td><td>%s</td></tr>`
+	//defaultApplicationType = "text/plain"
+	preHTML   = `<html><header></header><body><div><table border="solid"><caption>Metrics</caption><tr><th>metricName</th><th>metricVal</th></tr>`
+	postHTML  = `</table></div></body>`
+	trPattern = `<tr><td><a href="/value/%s/%s">%s</a></td><td>%s</td></tr>`
 )
 
 var allowedTypes = map[string]string{
@@ -30,11 +30,11 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 		////check content type only defaultApplicationType
-		if r.Header.Get("Content-type") != defaultApplicationType {
-			w.Header().Add("Allowed", "text/plain")
-			http.Error(w, "Allowed text/plain only", http.StatusUnsupportedMediaType)
-			return
-		}
+		//if r.Header.Get("Content-type") != defaultApplicationType {
+		//	w.Header().Add("Allowed", "text/plain")
+		//	http.Error(w, "Allowed text/plain only", http.StatusUnsupportedMediaType)
+		//	return
+		//}
 
 		//check elements in path
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
