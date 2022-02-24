@@ -8,9 +8,8 @@ import (
 
 func Test_collector_addGauge(t *testing.T) {
 	type fields struct {
-		host string
-		port string
-		data map[string]*MetricEntity
+		baseURL string
+		data    map[string]*MetricEntity
 	}
 	type args struct {
 		name  string
@@ -25,7 +24,6 @@ func Test_collector_addGauge(t *testing.T) {
 			"check add new gauge",
 			fields{
 				"",
-				"",
 				make(map[string]*MetricEntity),
 			},
 			args{
@@ -36,7 +34,6 @@ func Test_collector_addGauge(t *testing.T) {
 		{
 			"check add existing gauge",
 			fields{
-				"",
 				"",
 				map[string]*MetricEntity{
 					"val": {
@@ -54,9 +51,8 @@ func Test_collector_addGauge(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := &collector{
-				host: tt.fields.host,
-				port: tt.fields.port,
-				data: tt.fields.data,
+				baseURL: tt.fields.baseURL,
+				data:    tt.fields.data,
 			}
 			mc.addGauge(tt.args.name, tt.args.value)
 			assert.Equal(t, tt.args.value, mc.data[tt.args.name].entityValue)
@@ -68,9 +64,8 @@ func Test_collector_addGauge(t *testing.T) {
 
 func Test_collector_increaseCounter(t *testing.T) {
 	type fields struct {
-		host string
-		port string
-		data map[string]*MetricEntity
+		baseURL string
+		data    map[string]*MetricEntity
 	}
 	type args struct {
 		name        string
@@ -85,7 +80,6 @@ func Test_collector_increaseCounter(t *testing.T) {
 			"check add new counter",
 			fields{
 				"",
-				"",
 				make(map[string]*MetricEntity),
 			},
 			args{
@@ -96,7 +90,6 @@ func Test_collector_increaseCounter(t *testing.T) {
 		{
 			"check add existing counter",
 			fields{
-				"",
 				"",
 				map[string]*MetricEntity{
 					"val": {
@@ -115,9 +108,8 @@ func Test_collector_increaseCounter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := &collector{
-				host: tt.fields.host,
-				port: tt.fields.port,
-				data: tt.fields.data,
+				baseURL: tt.fields.baseURL,
+				data:    tt.fields.data,
 			}
 			mc.increaseCounter(tt.args.name)
 			assert.Equal(t, tt.args.expectedVal, mc.data[tt.args.name].entityValue)
@@ -128,9 +120,8 @@ func Test_collector_increaseCounter(t *testing.T) {
 
 func Test_collector_getEntity(t *testing.T) {
 	type fields struct {
-		host string
-		port string
-		data map[string]*MetricEntity
+		baseURL string
+		data    map[string]*MetricEntity
 	}
 	type args struct {
 		name        string
@@ -146,7 +137,6 @@ func Test_collector_getEntity(t *testing.T) {
 		{
 			"check get not existing gauge entity",
 			fields{
-				"",
 				"",
 				make(map[string]*MetricEntity),
 			},
@@ -164,7 +154,6 @@ func Test_collector_getEntity(t *testing.T) {
 		{
 			"check get existing gauge entity",
 			fields{
-				"",
 				"",
 				map[string]*MetricEntity{
 					"val": {
@@ -189,9 +178,8 @@ func Test_collector_getEntity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := &collector{
-				host: tt.fields.host,
-				port: tt.fields.port,
-				data: tt.fields.data,
+				baseURL: tt.fields.baseURL,
+				data:    tt.fields.data,
 			}
 			if got := mc.getEntity(tt.args.name, tt.args.typeentity); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getEntity() = %v, want %v", got, tt.want)
@@ -203,9 +191,8 @@ func Test_collector_getEntity(t *testing.T) {
 
 func Test_collector_Collect(t *testing.T) {
 	type fields struct {
-		host string
-		port string
-		data map[string]*MetricEntity
+		baseURL string
+		data    map[string]*MetricEntity
 	}
 	tests := []struct {
 		name              string
@@ -217,7 +204,6 @@ func Test_collector_Collect(t *testing.T) {
 			"check first run fulled ",
 			fields{
 				"",
-				"",
 				make(map[string]*MetricEntity),
 			},
 			1,
@@ -226,7 +212,6 @@ func Test_collector_Collect(t *testing.T) {
 		{
 			"check two runs filled map",
 			fields{
-				"",
 				"",
 				make(map[string]*MetricEntity),
 			},
@@ -237,9 +222,8 @@ func Test_collector_Collect(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := &collector{
-				host: tt.fields.host,
-				port: tt.fields.port,
-				data: tt.fields.data,
+				baseURL: tt.fields.baseURL,
+				data:    tt.fields.data,
 			}
 			for i := 0; i < tt.invokeRetryNumber; i++ {
 				mc.Collect()
