@@ -3,11 +3,11 @@ package handlers
 import (
 	"fmt"
 	"github.com/foximilUno/metrics/internal/repositories"
+	"github.com/go-chi/chi"
 	"log"
 	"net/http"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 const (
@@ -24,95 +24,86 @@ var allowedTypes = map[string]string{
 
 func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		metricType := chi.URLParam(r, "metricType")
+		metricName := chi.URLParam(r, "metricName")
+		metricVal := chi.URLParam(r, "metricValue")
+
 		//check method only POST
 		if r.Method != http.MethodPost {
 			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		////check content type only defaultApplicationType
-		//if r.Header.Get("Content-type") != defaultApplicationType {
-		//	w.Header().Add("Allowed", "text/plain")
-		//	http.Error(w, "Allowed text/plain only", http.StatusUnsupportedMediaType)
+		////check elements in path
+		//segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
+
+		//if len(segments) != 4 {
+		//	http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
 		//	return
 		//}
 
-		//check elements in path
-		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
-
-		if len(segments) != 4 {
-			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
-			return
-		}
-
-		if len(segments[2]) == 0 {
+		if len(metricName) == 0 {
 			http.Error(w, "metric name cant be empty", http.StatusBadRequest)
 		}
 
-		switch segments[1] {
+		switch metricType {
 		case "gauge":
-			val, err := strconv.ParseFloat(segments[3], 64)
+			val, err := strconv.ParseFloat(metricVal, 64)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("%s некорректного типа: counter: float64", segments[2]), http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("%s некорректного типа: counter: float64", metricVal), http.StatusBadRequest)
 				return
 			}
-			s.SaveGauge(segments[2], val)
+			s.SaveGauge(metricName, val)
 		case "counter":
-			val, err := strconv.ParseInt(segments[3], 10, 64)
+			val, err := strconv.ParseInt(metricVal, 10, 64)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("%s некорректного типа: counter: int64", segments[2]), http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("%s некорректного типа: counter: int64", metricVal), http.StatusBadRequest)
 				return
 			}
-			s.SaveCounter(segments[2], val)
+			s.SaveCounter(metricName, val)
 		default:
-			http.Error(w, fmt.Sprintf("Bad request: %s cant be, use %s", segments[1], reflect.ValueOf(allowedTypes).MapKeys()), http.StatusNotImplemented)
+			http.Error(w, fmt.Sprintf("Bad request: %s cant be, use %s", metricType, reflect.ValueOf(allowedTypes).MapKeys()), http.StatusNotImplemented)
 			return
 		}
 
-		log.Printf("invoked update metric with type \"%s\" witn name \"%s\" with value \"%s\"", segments[1], segments[2], segments[3])
-
-		w.WriteHeader(200)
+		log.Printf("invoked update metric with type \"%s\" witn name \"%s\" with value \"%s\"", metricType, metricName, metricVal)
 	}
 }
 
 func GetMetric(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		metricType := chi.URLParam(r, "metricType")
+		metricName := chi.URLParam(r, "metricName")
+
 		if r.Method != http.MethodGet {
-			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+			http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		//check elements in path
-		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
-
-		if len(segments) != 3 {
-			http.Error(w, "path must be pattern like /value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>", http.StatusBadRequest)
-			return
-		}
-
-		if len(segments[2]) == 0 {
+		if len(metricName) == 0 {
 			http.Error(w, "metric name cant be empty", http.StatusBadRequest)
 			return
 		}
 
 		var result string
 		var err error
-		switch segments[1] {
+		switch metricType {
 		case "gauge":
-			result, err = s.GetGaugeMetricAsString(segments[2])
+			result, err = s.GetGaugeMetricAsString(metricName)
 		case "counter":
-			result, err = s.GetCounterMetricAsString(segments[2])
+			result, err = s.GetCounterMetricAsString(metricName)
 		default:
-			http.Error(w, fmt.Sprintf("Bad request: %s cant be, use %s", segments[1], reflect.ValueOf(allowedTypes).MapKeys()), http.StatusNotImplemented)
+			http.Error(w, fmt.Sprintf("Bad request: %s cant be, use %s", metricType, reflect.ValueOf(allowedTypes).MapKeys()), http.StatusNotImplemented)
 			return
 		}
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
+			return
 		}
 		_, err = w.Write([]byte(result))
 		if err != nil {
+			log.Printf("error while write response: %e", err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -121,18 +112,25 @@ func GetMetricsTable(s repositories.MetricSaver) http.HandlerFunc {
 		var response []byte
 		response = append(response, []byte(preHTML)...)
 		for _, v := range s.GetGaugeMetricNames() {
-			n, _ := s.GetGaugeMetricAsString(v)
-			response = append(response, []byte(fmt.Sprintf(trPattern, "gauge", v, v, n))...)
+			n, err := s.GetGaugeMetricAsString(v)
+			if err != nil {
+				log.Printf("error while getting value: %e", err)
+			} else {
+				response = append(response, []byte(fmt.Sprintf(trPattern, "gauge", v, v, n))...)
+			}
 		}
 		for _, v := range s.GetCounterMetricNames() {
-			n, _ := s.GetCounterMetricAsString(v)
-			response = append(response, []byte(fmt.Sprintf(trPattern, "counter", v, v, n))...)
+			n, err := s.GetCounterMetricAsString(v)
+			if err != nil {
+				log.Printf("error while getting value: %e", err)
+			} else {
+				response = append(response, []byte(fmt.Sprintf(trPattern, "counter", v, v, n))...)
+			}
 		}
 		response = append(response, []byte(postHTML)...)
 		_, err := w.Write(response)
 		if err != nil {
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 	}
 }
