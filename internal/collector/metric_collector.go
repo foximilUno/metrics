@@ -46,9 +46,9 @@ func (mc *collector) increaseCounter(name string) {
 	mc.getEntity(name, counter).entityValue++
 }
 
-func (mc *collector) getEntity(name string, typeentity string) *MetricEntity {
+func (mc *collector) getEntity(name string, typeEntity string) *MetricEntity {
 	if _, ok := mc.data[name]; !ok {
-		mc.data[name] = &MetricEntity{typeentity, name, 0}
+		mc.data[name] = &MetricEntity{typeEntity, name, 0}
 	}
 	return mc.data[name]
 }

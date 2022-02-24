@@ -14,16 +14,14 @@ import (
 type config struct {
 	pollInterval   time.Duration
 	reportInterval time.Duration
-	serverHost     string
-	serverPort     string
+	url            string
 }
 
 func (c *config) String() string {
-	return fmt.Sprintf("config: pollInterval: %fs, reportInterval: %fs, serverHost: \"%s\", serverPort: \"%s\"",
+	return fmt.Sprintf("config: pollInterval: %fs, reportInterval: %fs, url: \"%s\"",
 		c.pollInterval.Seconds(),
 		c.pollInterval.Seconds(),
-		c.serverHost,
-		c.serverPort)
+		c.url)
 }
 
 func main() {
@@ -32,8 +30,7 @@ func main() {
 	cfg := &config{
 		time.Second * 2,
 		time.Second * 10,
-		"127.0.0.1",
-		"8080",
+		"http://127.0.0.1:8080",
 	}
 
 	log.Println(cfg)
@@ -53,7 +50,7 @@ func main() {
 	defer reportTicker.Stop()
 
 	rand.Seed(time.Now().UnixNano())
-	mc := collector.NewMetricCollector(cfg.serverHost, cfg.serverPort)
+	mc := collector.NewMetricCollector(cfg.serverPort)
 
 	for {
 		select {
