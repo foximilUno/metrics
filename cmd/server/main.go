@@ -17,15 +17,9 @@ func main() {
 
 	r := chi.NewRouter()
 
-	r.Route("/update", func(r chi.Router) {
-		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.SaveMetrics(storage))
-	})
-	r.Route("/value", func(r chi.Router) {
-		r.Get("/{metricType}/{metricName}", handlers.GetMetric(storage))
-	})
-	r.Route("/", func(r chi.Router) {
-		r.Get("/", handlers.GetMetricsTable(storage))
-	})
+	r.Post("/update/{metricType}/{metricName}/{metricValue}", handlers.SaveMetrics(storage))
+	r.Get("/value/{metricType}/{metricName}", handlers.GetMetric(storage))
+	r.Get("/", handlers.GetMetricsTable(storage))
 	server := &http.Server{
 		Addr:    defaultEndpoint,
 		Handler: r,
