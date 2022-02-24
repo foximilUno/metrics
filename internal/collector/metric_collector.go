@@ -110,7 +110,7 @@ func (mc *collector) Report() {
 
 		defer resp.Body.Close()
 
-		if resp.StatusCode != 200 {
+		if resp.StatusCode != http.StatusOK {
 			log.Printf("server return error for url %s %d\n", currentURL, resp.StatusCode)
 		}
 	}
