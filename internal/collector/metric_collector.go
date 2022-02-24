@@ -20,16 +20,14 @@ type MetricEntity struct {
 }
 
 type collector struct {
-	host   string
-	port   string
-	data   map[string]*MetricEntity
-	client *http.Client
+	baseURL string
+	data    map[string]*MetricEntity
+	client  *http.Client
 }
 
-func NewMetricCollector(host string, port string) *collector {
+func NewMetricCollector(baseURL string) *collector {
 	return &collector{
-		host,
-		port,
+		baseURL,
 		make(map[string]*MetricEntity),
 		&http.Client{},
 	}
@@ -93,9 +91,8 @@ func (mc *collector) Collect() {
 func (mc *collector) Report() {
 	log.Println("Report to server collect data")
 
-	commonURL := "http://" + mc.host + ":" + mc.port + "/update"
 	for _, v := range mc.data {
-		currentURL := commonURL + "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
+		currentURL := mc.baseURL + "/update" + "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
 		req, err := http.NewRequest(http.MethodPost, currentURL, nil)
 		if err != nil {
 			//TODO what to do)) just logging right now
