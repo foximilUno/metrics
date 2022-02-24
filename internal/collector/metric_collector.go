@@ -20,9 +20,10 @@ type MetricEntity struct {
 }
 
 type collector struct {
-	host string
-	port string
-	data map[string]*MetricEntity
+	host   string
+	port   string
+	data   map[string]*MetricEntity
+	client *http.Client
 }
 
 func NewMetricCollector(host string, port string) *collector {
@@ -30,7 +31,13 @@ func NewMetricCollector(host string, port string) *collector {
 		host,
 		port,
 		make(map[string]*MetricEntity),
+		&http.Client{},
 	}
+}
+
+func (mc *collector) WithClient(client *http.Client) *collector {
+	mc.client = client
+	return mc
 }
 
 func (mc *collector) addGauge(name string, value uint64) {
@@ -85,7 +92,6 @@ func (mc *collector) Collect() {
 
 func (mc *collector) Report() {
 	log.Println("Report to server collect data")
-	client := http.Client{}
 
 	commonURL := "http://" + mc.host + ":" + mc.port + "/update"
 	for _, v := range mc.data {
@@ -97,7 +103,7 @@ func (mc *collector) Report() {
 		}
 		req.Header.Set("Content-Type", "text/plain")
 
-		resp, err := client.Do(req)
+		resp, err := mc.client.Do(req)
 
 		if err != nil {
 			//TODO what to do)) just logging right now
