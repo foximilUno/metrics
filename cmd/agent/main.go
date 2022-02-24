@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/foximilUno/metrics/internal/collector"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
@@ -51,6 +52,7 @@ func main() {
 	defer pollTicker.Stop()
 	defer reportTicker.Stop()
 
+	rand.Seed(time.Now().UnixNano())
 	mc := collector.NewMetricCollector(cfg.serverHost, cfg.serverPort)
 
 	for {
