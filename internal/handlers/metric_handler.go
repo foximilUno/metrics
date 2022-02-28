@@ -238,7 +238,9 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		bb, err := json.Marshal(metric)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(bb)
 		if err != nil {
 			return
