@@ -40,9 +40,6 @@ func main() {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-	go func() {
-		<-sigChan
-	}()
 
 	pollTicker := time.NewTicker(cfg.pollInterval)
 	reportTicker := time.NewTicker(cfg.reportInterval)
@@ -51,7 +48,6 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 	mc := collector.NewMetricCollector(cfg.url)
-
 	for {
 		select {
 		case <-sigChan:
