@@ -116,7 +116,7 @@ func TestSaveMetrics(t *testing.T) {
 			assert.NoError(t, err)
 			req.Header.Set("Content-type", tt.args.contentType)
 			w := httptest.NewRecorder()
-			h := SaveMetricsViaJSON(storage.NewMapStorage())
+			h := SaveMetricsViaTextPlain(storage.NewMapStorage())
 			h.ServeHTTP(w, req)
 			r := w.Result()
 			body, err := ioutil.ReadAll(r.Body)
