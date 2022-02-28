@@ -115,6 +115,10 @@ func (mc *collector) Report() {
 			m.Delta = &newVal
 		}
 		b, err := json.Marshal(m)
+		if err != nil {
+			//TODO what to do)) just logging right now
+			log.Println("error while marshalling", err)
+		}
 
 		req, err := http.NewRequest(http.MethodPost, currentURL, bytes.NewBuffer(b))
 		if err != nil {
