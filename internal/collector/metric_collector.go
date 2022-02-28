@@ -1,6 +1,9 @@
 package collector
 
 import (
+	"bytes"
+	"encoding/json"
+	"github.com/foximilUno/metrics/internal/handlers"
 	"log"
 	"math/rand"
 	"net/http"
@@ -92,13 +95,33 @@ func (mc *collector) Report() {
 	log.Println("Report to server collect data")
 
 	for _, v := range mc.data {
-		currentURL := mc.baseURL + "/update" + "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
-		req, err := http.NewRequest(http.MethodPost, currentURL, nil)
+		currentURL := mc.baseURL + "/update"
+		//+ "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
+		/*
+			по хорошему наверное должна быть своя структура если бы был рест апи стороннего сервиса
+			ну или импорт пакета с сущностями
+			а пока так
+		*/
+		m := handlers.Metrics{
+			ID:    v.entityName,
+			MType: v.entityType,
+		}
+		if v.entityType == gauge {
+			newVal := float64(v.entityValue)
+			m.Value = &newVal
+		}
+		if v.entityType == counter {
+			newVal := int64(v.entityValue)
+			m.Delta = &newVal
+		}
+		b, err := json.Marshal(m)
+
+		req, err := http.NewRequest(http.MethodPost, currentURL, bytes.NewBuffer(b))
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Println("error while make request", err)
 		}
-		req.Header.Set("Content-Type", "text/plain")
+		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := mc.client.Do(req)
 
