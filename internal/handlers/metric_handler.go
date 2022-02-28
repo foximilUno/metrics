@@ -63,7 +63,10 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 				http.Error(w, fmt.Sprintf("%s некорректного типа: counter: int64", segments[2]), http.StatusBadRequest)
 				return
 			}
-			s.SaveCounter(segments[2], val)
+			err = s.SaveCounter(segments[2], val)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 		default:
 			http.Error(w, fmt.Sprintf("Bad request: %s cant be, use %s", segments[1], reflect.ValueOf(allowedTypes).MapKeys()), http.StatusNotImplemented)
 			return

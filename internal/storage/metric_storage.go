@@ -22,18 +22,19 @@ func (srm *MapStorage) SaveGauge(name string, val float64) {
 	srm.gauges[name] = val
 }
 
-func (srm *MapStorage) SaveCounter(name string, val int64) {
+func (srm *MapStorage) SaveCounter(name string, val int64) error {
 	if _, ok := srm.counters[name]; !ok {
 		srm.counters[name] = 0
 	}
 
 	after, err := sumWithCheck(srm.counters[name], val)
 	if err != nil {
-		log.Printf("cant increase counter with name %s: %e\r\n", name, err)
-		return
+		return fmt.Errorf("cant increase counter with name %s: %e", name, err)
+
 	}
 	log.Printf("successfully increase counter %s: before: %d, val:%d, after:%d \r\n", name, srm.counters[name], val, after)
 	srm.counters[name] = after
+	return nil
 }
 
 func (srm *MapStorage) GetGaugeMetricAsString(name string) (string, error) {
