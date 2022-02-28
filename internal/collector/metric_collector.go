@@ -95,7 +95,7 @@ func (mc *collector) Report() {
 	log.Println("Report to server collect data")
 
 	for _, v := range mc.data {
-		currentURL := mc.baseURL + "/update"
+		currentURL := mc.baseURL + "/update/"
 		//+ "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
 		/*
 			по хорошему наверное должна быть своя структура если бы был рест апи стороннего сервиса

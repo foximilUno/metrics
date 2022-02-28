@@ -20,8 +20,8 @@ func main() {
 	r.Post("/update/{metricType}/{metricName}/{metricVal}", handlers.SaveMetricsViaTextPlain(storage))
 	r.Get("/value/{metricType}/{metricName}", handlers.GetMetricViaTextPlain(storage))
 
-	r.Post("/update", handlers.SaveMetricsViaJSON(storage))
-	r.Post("/value", handlers.GetMetricViaJSON(storage))
+	r.Post("/update/", handlers.SaveMetricsViaJSON(storage))
+	r.Post("/value/", handlers.GetMetricViaJSON(storage))
 
 	r.Get("/", handlers.GetMetricsTable(storage))
 	server := &http.Server{
