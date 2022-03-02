@@ -14,7 +14,7 @@ const (
 )
 
 type Config struct {
-	Url string `env:"HOST" envDefault:":8080"`
+	Host string `env:"HOST" envDefault:":8080"`
 }
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 	})
 	r.Get("/", handlers.GetMetricsTable(storage))
 	server := &http.Server{
-		Addr:    cfg.Url,
+		Addr:    cfg.Host,
 		Handler: r,
 	}
 	log.Printf("Server started at endpoint %s\r\n", defaultEndpoint)
