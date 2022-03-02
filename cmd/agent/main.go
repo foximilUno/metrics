@@ -15,14 +15,14 @@ import (
 type Config struct {
 	PollInterval   int64  `env:"POLL_INTERVAL" envDefault:"2"`
 	ReportInterval int64  `env:"REPORT_INTERVAL" envDefault:"10"`
-	Url            string `env:"ADDRESS" envDefault:"http://127.0.0.1:8080"`
+	URL            string `env:"ADDRESS" envDefault:"http://127.0.0.1:8080"`
 }
 
 func (c *Config) String() string {
-	return fmt.Sprintf("Config: PollInterval: %fs, ReportInterval: %fs, Url: \"%s\"",
+	return fmt.Sprintf("Config: PollInterval: %ds, ReportInterval: %ds, URL: \"%s\"",
 		c.PollInterval,
 		c.PollInterval,
-		c.Url)
+		c.URL)
 }
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	defer reportTicker.Stop()
 
 	rand.Seed(time.Now().UnixNano())
-	mc := collector.NewMetricCollector(cfg.Url)
+	mc := collector.NewMetricCollector(cfg.URL)
 	for {
 		select {
 		case <-sigChan:
