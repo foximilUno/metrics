@@ -7,7 +7,6 @@ import (
 	"github.com/go-chi/chi"
 	"log"
 	"net/http"
-	"reflect"
 	"strings"
 )
 
@@ -18,13 +17,7 @@ type Config struct {
 func main() {
 	var cfg Config
 
-	trimEnv := func(v string) (interface{}, error) {
-		return strings.TrimSpace(v), nil
-	}
-
-	err := env.ParseWithFuncs(&cfg, map[reflect.Type]env.ParserFunc{
-		reflect.TypeOf(cfg.Host): trimEnv,
-	})
+	err := env.Parse(&cfg)
 	if err != nil {
 		log.Fatalf("cant start server: %e", err)
 	}
