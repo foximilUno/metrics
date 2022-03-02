@@ -14,7 +14,7 @@ const (
 )
 
 type Config struct {
-	Host string `env:"HOST" envDefault:":8080"`
+	Host string `env:"ADDRESS" envDefault:":8080"`
 }
 
 func main() {
