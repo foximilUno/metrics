@@ -97,7 +97,6 @@ func (mc *collector) Report() {
 
 	for _, v := range mc.data {
 		currentURL := mc.baseURL + "/update/"
-		//+ "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
 		/*
 			по хорошему наверное должна быть своя структура если бы был рест апи стороннего сервиса
 			ну или импорт пакета с сущностями

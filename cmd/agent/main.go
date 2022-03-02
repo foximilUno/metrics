@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/foximilUno/metrics/internal/collector"
 	"log"
 	"math/rand"
@@ -11,29 +12,30 @@ import (
 	"time"
 )
 
-type config struct {
-	pollInterval   time.Duration
-	reportInterval time.Duration
-	url            string
+type Config struct {
+	PollInterval   int64  `env:"POLL_INTERVAL" envDefault:"2"`
+	ReportInterval int64  `env:"REPORT_INTERVAL" envDefault:"10"`
+	Url            string `env:"ADDRESS" envDefault:"http://127.0.0.1:8080"`
 }
 
-func (c *config) String() string {
-	return fmt.Sprintf("config: pollInterval: %fs, reportInterval: %fs, url: \"%s\"",
-		c.pollInterval.Seconds(),
-		c.pollInterval.Seconds(),
-		c.url)
+func (c *Config) String() string {
+	return fmt.Sprintf("Config: PollInterval: %fs, ReportInterval: %fs, Url: \"%s\"",
+		c.PollInterval,
+		c.PollInterval,
+		c.Url)
 }
 
 func main() {
-	log.Println("Agent started")
 
-	cfg := &config{
-		time.Second * 2,
-		time.Second * 10,
-		"http://127.0.0.1:8080",
+	var cfg Config
+	err := env.Parse(&cfg)
+	if err != nil {
+		log.Fatalf("cant start agent: %e", err)
+	} else {
+		log.Println("agent started")
 	}
 
-	log.Println(cfg)
+	log.Println(cfg.String())
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan,
@@ -41,13 +43,13 @@ func main() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-	pollTicker := time.NewTicker(cfg.pollInterval)
-	reportTicker := time.NewTicker(cfg.reportInterval)
+	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
+	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
 	defer pollTicker.Stop()
 	defer reportTicker.Stop()
 
 	rand.Seed(time.Now().UnixNano())
-	mc := collector.NewMetricCollector(cfg.url)
+	mc := collector.NewMetricCollector(cfg.Url)
 	for {
 		select {
 		case <-sigChan:
