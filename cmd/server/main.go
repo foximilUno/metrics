@@ -7,10 +7,8 @@ import (
 	"github.com/go-chi/chi"
 	"log"
 	"net/http"
-)
-
-const (
-	defaultEndpoint = ":8080"
+	"reflect"
+	"strings"
 )
 
 type Config struct {
@@ -20,7 +18,13 @@ type Config struct {
 func main() {
 	var cfg Config
 
-	err := env.Parse(&cfg)
+	trimEnv := func(v string) (interface{}, error) {
+		return strings.TrimSpace(v), nil
+	}
+
+	err := env.ParseWithFuncs(&cfg, map[reflect.Type]env.ParserFunc{
+		reflect.TypeOf(cfg.Host): trimEnv,
+	})
 	if err != nil {
 		log.Fatalf("cant start server: %e", err)
 	}
@@ -42,10 +46,10 @@ func main() {
 	})
 	r.Get("/", handlers.GetMetricsTable(storage))
 	server := &http.Server{
-		Addr:    cfg.Host,
+		Addr:    ":" + strings.Split(cfg.Host, ":")[1],
 		Handler: r,
 	}
-	log.Printf("Server started at endpoint %s\r\n", defaultEndpoint)
+	log.Printf("Server started at endpoint %s\n", server.Addr)
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
