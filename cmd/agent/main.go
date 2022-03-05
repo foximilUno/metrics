@@ -21,7 +21,7 @@ type Config struct {
 func (c *Config) String() string {
 	return fmt.Sprintf("Config: PollInterval: %ds, ReportInterval: %ds, URL: \"%s\"",
 		c.PollInterval,
-		c.PollInterval,
+		c.ReportInterval,
 		c.URL)
 }
 
