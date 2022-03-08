@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	//defaultApplicationType = "text/plain"
 	preHTML   = `<html><header></header><body><div><table border="solid"><caption>Metrics</caption><tr><th>metricName</th><th>metricVal</th></tr>`
 	postHTML  = `</table></div></body>`
 	trPattern = `<tr><td><a href="/value/%s/%s">%s</a></td><td>%s</td></tr>`
@@ -28,6 +29,9 @@ type Metrics struct {
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
+type ResultError struct {
+	Error string
 }
 
 func readNewMetric(r *http.Request) (*Metrics, error) {
@@ -66,10 +70,6 @@ func (m *Metrics) UnmarshalJSON(bytes []byte) error {
 		m.Value = &tempValue
 	}
 	return nil
-}
-
-type ResultError struct {
-	Error string `json:"error"`
 }
 
 func SendErrorWithString(w http.ResponseWriter, stringVal string) error {

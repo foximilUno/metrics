@@ -1,10 +1,13 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"log"
 	"math"
+	"os"
+	"path/filepath"
 )
 
 type MapStorage struct {
@@ -14,8 +17,74 @@ type MapStorage struct {
 
 func NewMapStorage() repositories.MetricSaver {
 	return &MapStorage{
-		make(map[string]float64),
-		make(map[string]int64)}
+		gauges:   make(map[string]float64),
+		counters: make(map[string]int64)}
+}
+
+func (srm *MapStorage) LoadFromFile(filename string) error {
+	//TODO
+
+	fmt.Println("load", filename)
+
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0644)
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+
+		}
+	}(file)
+	fmt.Println(filepath.Abs(filename))
+	if err != nil {
+		return err
+	}
+	encoder := json.NewEncoder(file)
+	for _, v := range srm.gauges {
+		err := encoder.Encode(v)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, v := range srm.counters {
+		err := encoder.Encode(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
+	return nil
+}
+
+func (srm *MapStorage) SaveToFile(filename string) error {
+	//TODO
+	fmt.Println("save", filename)
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0644)
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+
+		}
+	}(file)
+	fmt.Println(filepath.Abs(filename))
+	if err != nil {
+		return err
+	}
+	encoder := json.NewEncoder(file)
+	for _, v := range srm.gauges {
+		err := encoder.Encode(v)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, v := range srm.counters {
+		err := encoder.Encode(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (srm *MapStorage) SaveGauge(name string, val float64) {
