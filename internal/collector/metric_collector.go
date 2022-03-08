@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/foximilUno/metrics/internal/handlers"
+	"github.com/foximilUno/metrics/internal/types"
 	"log"
 	"math/rand"
 	"net/http"
@@ -102,7 +102,7 @@ func (mc *collector) Report() {
 			ну или импорт пакета с сущностями
 			а пока так
 		*/
-		m := handlers.Metrics{
+		m := types.Metrics{
 			ID:    v.entityName,
 			MType: v.entityType,
 		}
