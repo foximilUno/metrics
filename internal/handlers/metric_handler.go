@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	//defaultApplicationType = "text/plain"
 	preHTML   = `<html><header></header><body><div><table border="solid"><caption>Metrics</caption><tr><th>metricName</th><th>metricVal</th></tr>`
 	postHTML  = `</table></div></body>`
 	trPattern = `<tr><td><a href="/value/%s/%s">%s</a></td><td>%s</td></tr>`
@@ -30,6 +29,7 @@ type Metrics struct {
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
+
 type ResultError struct {
 	Error string
 }
@@ -265,7 +265,7 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 		}
-		_, err = w.Write([]byte(result))
+		_, err = w.Write([]byte("\"" + result + "\""))
 		if err != nil {
 			return
 		}

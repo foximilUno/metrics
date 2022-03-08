@@ -125,11 +125,14 @@ func (mc *collector) Report() {
 		}
 
 		req, err := http.NewRequest(http.MethodPost, currentURL, bytes.NewBuffer(b))
+
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Println("error while make request", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
+
+		fmt.Printf("%+v\n\n\n", req)
 
 		resp, err := mc.client.Do(req)
 

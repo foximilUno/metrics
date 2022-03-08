@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/foximilUno/metrics/internal/handlers"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"log"
 	"math"
@@ -15,6 +16,10 @@ type MapStorage struct {
 	counters map[string]int64
 }
 
+type Dump struct {
+	DumpedMetrics []handlers.Metrics `json:"dumpedMetrics"`
+}
+
 func NewMapStorage() repositories.MetricSaver {
 	return &MapStorage{
 		gauges:   make(map[string]float64),
@@ -22,67 +27,99 @@ func NewMapStorage() repositories.MetricSaver {
 }
 
 func (srm *MapStorage) LoadFromFile(filename string) error {
-	//TODO
 
 	fmt.Println("load", filename)
 
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0644)
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-
-		}
-	}(file)
-	fmt.Println(filepath.Abs(filename))
+	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}
-	encoder := json.NewEncoder(file)
-	for _, v := range srm.gauges {
-		err := encoder.Encode(v)
+
+	defer func(file *os.File) {
+		err := file.Close()
 		if err != nil {
-			return err
+			log.Println(err)
 		}
+	}(file)
+
+	fmt.Println(filepath.Abs(filename))
+	decoder := json.NewDecoder(file)
+
+	var dump *Dump
+
+	if err := decoder.Decode(&dump); err != nil {
+		log.Fatal("fatal", err)
 	}
 
-	for _, v := range srm.counters {
-		err := encoder.Encode(v)
-		if err != nil {
-			return err
+	log.Printf("loaded %d metrics\n", len(dump.DumpedMetrics))
+
+	for _, v := range dump.DumpedMetrics {
+		switch v.MType {
+		case "gauge":
+			srm.SaveGauge(v.ID, *v.Value)
+		case "counter":
+			err := srm.SaveCounter(v.ID, *v.Delta)
+			if err != nil {
+				return err
+			}
+		default:
+			log.Fatalf("not supported type of metric")
 		}
 	}
-	return nil
-
 	return nil
 }
 
 func (srm *MapStorage) SaveToFile(filename string) error {
-	//TODO
-	fmt.Println("save", filename)
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0644)
+	log.Println("save to", filename)
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
-
+			log.Println(err)
 		}
 	}(file)
-	fmt.Println(filepath.Abs(filename))
 	if err != nil {
 		return err
 	}
-	encoder := json.NewEncoder(file)
-	for _, v := range srm.gauges {
-		err := encoder.Encode(v)
-		if err != nil {
-			return err
-		}
+
+	fmt.Println(filepath.Abs(filename))
+
+	// to Metrics array
+	metricsArray := &Dump{
+		[]handlers.Metrics{},
 	}
 
-	for _, v := range srm.counters {
-		err := encoder.Encode(v)
-		if err != nil {
-			return err
-		}
+	for k, v := range srm.gauges {
+
+		tempV := v
+		metricsArray.DumpedMetrics = append(metricsArray.DumpedMetrics, handlers.Metrics{
+			ID:    k,
+			MType: "gauge",
+			Value: &tempV,
+		})
+	}
+
+	for k, v := range srm.counters {
+		tempV := v
+		metricsArray.DumpedMetrics = append(metricsArray.DumpedMetrics, handlers.Metrics{
+			ID:    k,
+			MType: "counter",
+			Delta: &tempV,
+		})
+	}
+	//to file
+	//for _, v := range metricsArray {
+	//	encoder := json.NewEncoder(file)
+	//	err := encoder.Encode(v)
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(metricsArray)
+	if err != nil {
+		return err
 	}
 	return nil
 }

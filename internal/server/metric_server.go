@@ -7,8 +7,8 @@ import (
 
 type MetricServerConfig struct {
 	Host          string `env:"ADDRESS" envDefault:":8080"`
-	StoreInterval int    `env:"STORE_INTERVAL" envDefault:"3"`
-	StoreFile     string `env:"STORE_FILE" envDefault:"./devops-metrics-db.json"`
+	StoreInterval int    `env:"STORE_INTERVAL" envDefault:"300"`
+	StoreFile     string `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
 	Restore       bool   `env:"RESTORE" envDefault:"true"`
 }
 
