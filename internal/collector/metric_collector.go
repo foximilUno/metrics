@@ -117,6 +117,7 @@ func (mc *collector) Report() {
 		default:
 			panic(fmt.Sprintf("unsupported for report type of metric: %s", v.entityType))
 		}
+
 		b, err := json.Marshal(m)
 		if err != nil {
 			//TODO what to do)) just logging right now
