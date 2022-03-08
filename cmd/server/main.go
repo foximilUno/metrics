@@ -31,9 +31,9 @@ func main() {
 			}
 		}
 
-		//saveTicker := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
+		saveTicker := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
 
-		//go savefile(saveTicker, storage, cfg.StoreFile)
+		go savefile(saveTicker, storage, cfg.StoreFile)
 
 	} else {
 		log.Println("function \"Save to file\" is turned off")
