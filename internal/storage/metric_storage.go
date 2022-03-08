@@ -3,8 +3,8 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/foximilUno/metrics/internal/handlers"
 	"github.com/foximilUno/metrics/internal/repositories"
+	"github.com/foximilUno/metrics/internal/types"
 	"io"
 	"log"
 	"math"
@@ -17,7 +17,7 @@ type MapStorage struct {
 }
 
 type Dump struct {
-	DumpedMetrics []handlers.Metrics `json:"dumpedMetrics"`
+	DumpedMetrics []types.Metrics `json:"dumpedMetrics"`
 }
 
 func NewMapStorage() repositories.MetricSaver {
@@ -84,13 +84,13 @@ func (srm *MapStorage) SaveToFile(filename string) error {
 	}
 
 	metricsArray := &Dump{
-		[]handlers.Metrics{},
+		[]types.Metrics{},
 	}
 
 	for k, v := range srm.gauges {
 
 		tempV := v
-		metricsArray.DumpedMetrics = append(metricsArray.DumpedMetrics, handlers.Metrics{
+		metricsArray.DumpedMetrics = append(metricsArray.DumpedMetrics, types.Metrics{
 			ID:    k,
 			MType: "gauge",
 			Value: &tempV,
@@ -99,7 +99,7 @@ func (srm *MapStorage) SaveToFile(filename string) error {
 
 	for k, v := range srm.counters {
 		tempV := v
-		metricsArray.DumpedMetrics = append(metricsArray.DumpedMetrics, handlers.Metrics{
+		metricsArray.DumpedMetrics = append(metricsArray.DumpedMetrics, types.Metrics{
 			ID:    k,
 			MType: "counter",
 			Delta: &tempV,
