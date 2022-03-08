@@ -3,6 +3,7 @@ package collector
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/foximilUno/metrics/internal/handlers"
 	"log"
 	"math/rand"
@@ -105,13 +106,16 @@ func (mc *collector) Report() {
 			ID:    v.entityName,
 			MType: v.entityType,
 		}
-		if v.entityType == gauge {
+
+		switch v.entityType {
+		case gauge:
 			newVal := float64(v.entityValue)
 			m.Value = &newVal
-		}
-		if v.entityType == counter {
+		case counter:
 			newVal := int64(v.entityValue)
 			m.Delta = &newVal
+		default:
+			panic(fmt.Sprintf("unsupported for report type of metric: %s", v.entityType))
 		}
 		b, err := json.Marshal(m)
 		if err != nil {
