@@ -97,11 +97,7 @@ func (mc *collector) Report() {
 
 	for _, v := range mc.data {
 		currentURL := mc.baseURL + "/update/"
-		/*
-			по хорошему наверное должна быть своя структура если бы был рест апи стороннего сервиса
-			ну или импорт пакета с сущностями
-			а пока так
-		*/
+
 		m := types.Metrics{
 			ID:    v.entityName,
 			MType: v.entityType,
@@ -131,8 +127,6 @@ func (mc *collector) Report() {
 			log.Println("error while make request", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-
-		fmt.Printf("%+v\n\n\n", req)
 
 		resp, err := mc.client.Do(req)
 

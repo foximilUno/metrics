@@ -9,6 +9,9 @@ import (
 	st "github.com/foximilUno/metrics/internal/storage"
 	"github.com/go-chi/chi"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -44,6 +47,37 @@ func main() {
 
 	}
 
+	go runServer(cfg, storage)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
+	<-sigChan
+	log.Println("save on exit")
+	err = storage.SaveToFile(cfg.StoreFile)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+
+func dumpToFile(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
+	for {
+		select {
+		case <-ticker.C:
+			if err := storage.SaveToFile(filepath); err != nil {
+				log.Fatalf("cant save to file\"%s\", err:%e", filepath, err)
+			}
+		default:
+			time.Sleep(1 * time.Second)
+		}
+	}
+}
+
+func runServer(cfg server.MetricServerConfig, storage repositories.MetricSaver) {
 	r := chi.NewRouter()
 	r.Route("/", func(r chi.Router) {
 		r.Route("/update", func(r chi.Router) {
@@ -65,24 +99,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("cant start server: %e", err)
 	}
-
 	log.Printf("server started at endpoint %s\n", metricServer.Server.Addr)
 	err = metricServer.Server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
-	}
-
-}
-
-func dumpToFile(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
-	for {
-		select {
-		case <-ticker.C:
-			if err := storage.SaveToFile(filepath); err != nil {
-				log.Fatalf("cant save to file\"%s\", err:%e", filepath, err)
-			}
-		default:
-			time.Sleep(1 * time.Second)
-		}
 	}
 }
