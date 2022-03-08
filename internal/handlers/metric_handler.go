@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	//defaultApplicationType = "text/plain"
 	preHTML   = `<html><header></header><body><div><table border="solid"><caption>Metrics</caption><tr><th>metricName</th><th>metricVal</th></tr>`
 	postHTML  = `</table></div></body>`
 	trPattern = `<tr><td><a href="/value/%s/%s">%s</a></td><td>%s</td></tr>`
@@ -70,13 +69,24 @@ func (m *Metrics) UnmarshalJSON(bytes []byte) error {
 }
 
 type ResultError struct {
-	Error error `json:"error"`
+	Error string `json:"error"`
 }
 
-func NewResultError(w http.ResponseWriter, stringVal string) error {
+func SendErrorWithString(w http.ResponseWriter, stringVal string) error {
 	err := json.NewEncoder(w).Encode(
 		&ResultError{
-			fmt.Errorf(stringVal),
+			stringVal,
+		})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SendErrorWithError(w http.ResponseWriter, errorVal error) error {
+	err := json.NewEncoder(w).Encode(
+		&ResultError{
+			errorVal.Error(),
 		})
 	if err != nil {
 		return err
@@ -144,10 +154,9 @@ func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-type", "application/json")
-		//check method only POST
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			err := NewResultError(w, "only POST allowed")
+			err := SendErrorWithString(w, "only POST allowed")
 			if err != nil {
 				log.Println(err)
 			}
@@ -159,7 +168,7 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		if err != nil {
 			log.Println("error reaDMetric:", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			err := NewResultError(w, err.Error())
+			err := SendErrorWithError(w, err)
 			if err != nil {
 				log.Println(err)
 			}
@@ -169,7 +178,7 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		if metric.Delta == nil && metric.Value == nil {
 			w.WriteHeader(http.StatusBadRequest)
 
-			err := NewResultError(w, "delta or value must not be empty")
+			err := SendErrorWithString(w, "delta or value must not be empty")
 			if err != nil {
 				log.Println(err)
 			}
@@ -180,25 +189,39 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		case "gauge":
 			if metric.Value == nil {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(fmt.Errorf("value cant be empty"))
+				err := SendErrorWithString(w, "value cant be empty")
+				if err != nil {
+					log.Println(err)
+				}
 				return
 			}
 			s.SaveGauge(metric.ID, *metric.Value)
 		case "counter":
 			if metric.Delta == nil {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(fmt.Errorf("delta cant be empty"))
+				err := SendErrorWithString(w, "delta cant be empty")
+				if err != nil {
+					log.Println(err)
+				}
 				return
 			}
 			err = s.SaveCounter(metric.ID, *metric.Delta)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(err)
+
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
 				return
 			}
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
-			json.NewEncoder(w).Encode(fmt.Errorf("bad request: %s cant be, use %s", metric.ID, reflect.ValueOf(allowedTypes).MapKeys()))
+
+			err := SendErrorWithString(w, fmt.Sprintf("bad request: %s cant be, use %s", metric.ID, reflect.ValueOf(allowedTypes).MapKeys()))
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		}
 
@@ -252,15 +275,25 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 
 func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-type", "application/json")
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			json.NewEncoder(w).Encode(fmt.Errorf("only POST allowed"))
+
+			err := SendErrorWithString(w, "only POST allowed")
+			if err != nil {
+				log.Println(err)
+			}
+			return
 		}
 
 		metric, err := readNewMetric(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(err)
+
+			err := SendErrorWithError(w, err)
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		}
 
@@ -270,13 +303,21 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			result, err = s.GetGaugeMetricAsString(metric.ID)
 			if err != nil {
 				w.WriteHeader(http.StatusNotFound)
-				json.NewEncoder(w).Encode(err)
+
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
 				return
 			}
 			val, err := strconv.ParseFloat(result, 64)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(err)
+
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
 				return
 			}
 			metric.Value = &val
@@ -284,26 +325,39 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			result, err = s.GetCounterMetricAsString(metric.ID)
 			if err != nil {
 				w.WriteHeader(http.StatusNotFound)
-				json.NewEncoder(w).Encode(err)
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
 				return
 			}
 			val, err := strconv.ParseInt(result, 10, 64)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(err)
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
 				return
 			}
 			metric.Delta = &val
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
-			json.NewEncoder(w).Encode(fmt.Errorf("bad request: %s cant be, use %s", metric.MType, reflect.ValueOf(allowedTypes).MapKeys()))
+
+			err := SendErrorWithString(w, fmt.Sprintf("bad request: %s cant be, use %s", metric.MType, reflect.ValueOf(allowedTypes).MapKeys()))
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		}
 
 		bb, err := json.Marshal(metric)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(err)
+			err := SendErrorWithError(w, err)
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
