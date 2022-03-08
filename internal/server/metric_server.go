@@ -6,10 +6,10 @@ import (
 )
 
 type MetricServerConfig struct {
-	Host          string `env:"ADDRESS" envDefault:":8080"`
-	StoreInterval int    `env:"STORE_INTERVAL" envDefault:"300"`
-	StoreFile     string `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
-	Restore       bool   `env:"RESTORE" envDefault:"true"`
+	Host          string `json:"host" env:"ADDRESS" envDefault:":8080"`
+	StoreInterval int    `json:"storeInterval" env:"STORE_INTERVAL" envDefault:"5"`
+	StoreFile     string `json:"storeFile" env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
+	Restore       bool   `json:"isRestored" env:"RESTORE" envDefault:"true"`
 }
 
 type server struct {

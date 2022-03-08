@@ -265,7 +265,7 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 		}
-		_, err = w.Write([]byte("\"" + result + "\""))
+		_, err = w.Write([]byte(result))
 		if err != nil {
 			return
 		}

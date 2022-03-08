@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/foximilUno/metrics/internal/handlers"
 	"github.com/foximilUno/metrics/internal/repositories"
+	"io"
 	"log"
 	"math"
 	"os"
-	"path/filepath"
 )
 
 type MapStorage struct {
@@ -42,12 +42,13 @@ func (srm *MapStorage) LoadFromFile(filename string) error {
 		}
 	}(file)
 
-	fmt.Println(filepath.Abs(filename))
 	decoder := json.NewDecoder(file)
 
 	var dump *Dump
 
-	if err := decoder.Decode(&dump); err != nil {
+	if err := decoder.Decode(&dump); err == io.EOF {
+		return nil
+	} else if err != nil {
 		log.Fatal("fatal", err)
 	}
 
@@ -82,9 +83,6 @@ func (srm *MapStorage) SaveToFile(filename string) error {
 		return err
 	}
 
-	fmt.Println(filepath.Abs(filename))
-
-	// to Metrics array
 	metricsArray := &Dump{
 		[]handlers.Metrics{},
 	}
@@ -107,14 +105,6 @@ func (srm *MapStorage) SaveToFile(filename string) error {
 			Delta: &tempV,
 		})
 	}
-	//to file
-	//for _, v := range metricsArray {
-	//	encoder := json.NewEncoder(file)
-	//	err := encoder.Encode(v)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
 
 	encoder := json.NewEncoder(file)
 	err = encoder.Encode(metricsArray)

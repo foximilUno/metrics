@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/caarlos0/env"
 	"github.com/foximilUno/metrics/internal/handlers"
 	"github.com/foximilUno/metrics/internal/repositories"
@@ -18,7 +19,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("cant load metricServer envs: %e", err)
 	}
-
+	err = json.NewEncoder(log.Writer()).Encode(cfg)
+	if err != nil {
+		return
+	}
 	storage := st.NewMapStorage()
 
 	if len(cfg.StoreFile) != 0 {
@@ -33,7 +37,7 @@ func main() {
 
 		saveTicker := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
 
-		go savefile(saveTicker, storage, cfg.StoreFile)
+		go dumpToFile(saveTicker, storage, cfg.StoreFile)
 
 	} else {
 		log.Println("function \"Save to file\" is turned off")
@@ -70,7 +74,7 @@ func main() {
 
 }
 
-func savefile(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
+func dumpToFile(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
 	for {
 		select {
 		case <-ticker.C:
