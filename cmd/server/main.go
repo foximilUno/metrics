@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/caarlos0/env"
 	"github.com/foximilUno/metrics/internal/handlers"
 	st "github.com/foximilUno/metrics/internal/storage"
 	"github.com/go-chi/chi"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -17,9 +17,14 @@ type Config struct {
 func main() {
 	var cfg Config
 
-	err := env.Parse(&cfg)
-	if err != nil {
-		log.Fatalf("cant start server: %e", err)
+	//err := env.Parse(&cfg)
+	//if err != nil {
+	//	log.Fatalf("cant start server: %e", err)
+	//}
+	if adr := os.Getenv("ADDRESS"); adr != "" {
+		cfg.Host = ":8080"
+	} else {
+		cfg.Host = adr
 	}
 
 	storage := st.NewMapStorage()
