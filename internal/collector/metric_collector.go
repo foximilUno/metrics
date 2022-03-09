@@ -131,7 +131,7 @@ func (mc *collector) Report() {
 
 		if err != nil {
 			//TODO what to do)) just logging right now
-			log.Fatalf("error while send request: %e", err)
+			log.Printf("error while send request: %e\n", err)
 			return
 		}
 
