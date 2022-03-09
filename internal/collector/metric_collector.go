@@ -132,6 +132,8 @@ func (mc *collector) Report() {
 		}
 		req.Header.Set("Content-Type", "application/json")
 
+		fmt.Printf("%+v\n\n", req)
+
 		resp, err := mc.client.Do(req)
 
 		if err != nil {
