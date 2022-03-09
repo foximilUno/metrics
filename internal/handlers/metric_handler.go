@@ -59,7 +59,10 @@ func (m *Metrics) UnmarshalJSON(bytes []byte) error {
 		m.MType = v.(string)
 	}
 	if v, ok := requestOnj["delta"]; ok {
-		tempDelta := int64(v.(float64))
+		tempDelta, err := strconv.ParseInt(v.(string), 10, 64)
+		if err != nil {
+			return err
+		}
 		m.Delta = &tempDelta
 	}
 	if v, ok := requestOnj["value"]; ok {
@@ -69,38 +72,14 @@ func (m *Metrics) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-type ResultError struct {
-	Error error `json:"error"`
-}
-
-func NewResultError(w http.ResponseWriter, stringVal string) error {
-	err := json.NewEncoder(w).Encode(
-		&ResultError{
-			fmt.Errorf(stringVal),
-		})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		//check method only POST
 		if r.Method != http.MethodPost {
 			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		////check content type only defaultApplicationType
-		//if r.Header.Get("Content-type") != defaultApplicationType {
-		//	w.Header().Add("Allowed", "text/plain")
-		//	http.Error(w, "Allowed text/plain only", http.StatusUnsupportedMediaType)
-		//	return
-		//}
-
-		//check elements in path
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
 
 		if len(segments) != 4 {
@@ -147,10 +126,6 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		//check method only POST
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			err := NewResultError(w, "only POST allowed")
-			if err != nil {
-				log.Println(err)
-			}
 			return
 		}
 
@@ -159,20 +134,11 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		if err != nil {
 			log.Println("error reaDMetric:", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			err := NewResultError(w, err.Error())
-			if err != nil {
-				log.Println(err)
-			}
 			return
 		}
 
 		if metric.Delta == nil && metric.Value == nil {
 			w.WriteHeader(http.StatusBadRequest)
-
-			err := NewResultError(w, "delta or value must not be empty")
-			if err != nil {
-				log.Println(err)
-			}
 			return
 		}
 
@@ -180,25 +146,21 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		case "gauge":
 			if metric.Value == nil {
 				w.WriteHeader(http.StatusBadRequest)
-				//json.NewEncoder(w).Encode(fmt.Errorf("value cant be empty"))
 				return
 			}
 			s.SaveGauge(metric.ID, *metric.Value)
 		case "counter":
 			if metric.Delta == nil {
 				w.WriteHeader(http.StatusBadRequest)
-				//json.NewEncoder(w).Encode(fmt.Errorf("delta cant be empty"))
 				return
 			}
 			err = s.SaveCounter(metric.ID, *metric.Delta)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				//json.NewEncoder(w).Encode(err)
 				return
 			}
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
-			//json.NewEncoder(w).Encode(fmt.Errorf("bad request: %s cant be, use %s", metric.ID, reflect.ValueOf(allowedTypes).MapKeys()))
 			return
 		}
 
@@ -254,13 +216,11 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			//json.NewEncoder(w).Encode(fmt.Errorf("only POST allowed"))
 		}
 
 		metric, err := readNewMetric(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			//json.NewEncoder(w).Encode(err)
 			return
 		}
 
@@ -270,13 +230,11 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			result, err = s.GetGaugeMetricAsString(metric.ID)
 			if err != nil {
 				w.WriteHeader(http.StatusNotFound)
-				//json.NewEncoder(w).Encode(err)
 				return
 			}
 			val, err := strconv.ParseFloat(result, 64)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				//json.NewEncoder(w).Encode(err)
 				return
 			}
 			metric.Value = &val
@@ -284,26 +242,22 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			result, err = s.GetCounterMetricAsString(metric.ID)
 			if err != nil {
 				w.WriteHeader(http.StatusNotFound)
-				//json.NewEncoder(w).Encode(err)
 				return
 			}
 			val, err := strconv.ParseInt(result, 10, 64)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				//json.NewEncoder(w).Encode(err)
 				return
 			}
 			metric.Delta = &val
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
-			//json.NewEncoder(w).Encode(fmt.Errorf("bad request: %s cant be, use %s", metric.MType, reflect.ValueOf(allowedTypes).MapKeys()))
 			return
 		}
 
 		bb, err := json.Marshal(metric)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			//json.NewEncoder(w).Encode(err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
