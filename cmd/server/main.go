@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/caarlos0/env"
 	"github.com/foximilUno/metrics/internal/handlers"
 	st "github.com/foximilUno/metrics/internal/storage"
 	"github.com/go-chi/chi"
@@ -12,7 +13,18 @@ const (
 	defaultEndpoint = ":8080"
 )
 
+type Config struct {
+	Host string `env:"ADDRESS" envDefault:":8080"`
+}
+
 func main() {
+	var cfg Config
+
+	err := env.Parse(&cfg)
+	if err != nil {
+		log.Fatalf("cant start server: %e", err)
+	}
+
 	storage := st.NewMapStorage()
 
 	r := chi.NewRouter()
@@ -30,7 +42,7 @@ func main() {
 	})
 	r.Get("/", handlers.GetMetricsTable(storage))
 	server := &http.Server{
-		Addr:    defaultEndpoint,
+		Addr:    cfg.Host,
 		Handler: r,
 	}
 	log.Printf("Server started at endpoint %s\r\n", defaultEndpoint)
