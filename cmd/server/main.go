@@ -21,7 +21,7 @@ func main() {
 	//if err != nil {
 	//	log.Fatalf("cant start server: %e", err)
 	//}
-	if adr := os.Getenv("ADDRESS"); adr != "" {
+	if adr := os.Getenv("ADDRESS"); len(adr) == 0 {
 		cfg.Host = ":8080"
 	} else {
 		cfg.Host = adr
