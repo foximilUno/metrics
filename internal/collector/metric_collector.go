@@ -139,7 +139,7 @@ func (mc *collector) Report() {
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Printf("error while send request: %e\n", err)
-			return
+			continue
 		}
 
 		defer resp.Body.Close()
