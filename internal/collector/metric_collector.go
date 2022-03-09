@@ -86,7 +86,7 @@ func (mc *collector) Collect() {
 	mc.addGauge("StackSys", stats.StackSys)
 	mc.addGauge("Sys", stats.Sys)
 	mc.addGauge("RandomValue", rand.Uint64())
-	mc.addGauge("TotalAlloc ", stats.TotalAlloc)
+	mc.addGauge("TotalAlloc", stats.TotalAlloc)
 	mc.increaseCounter("PollCount")
 
 	log.Printf("Poll %s\r\n", strconv.FormatUint(mc.data["PollCount"].entityValue, 10))
