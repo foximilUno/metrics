@@ -9,10 +9,6 @@ import (
 	"net/http"
 )
 
-const (
-	defaultEndpoint = ":8080"
-)
-
 type Config struct {
 	Host string `env:"ADDRESS" envDefault:":8080"`
 }
@@ -45,7 +41,7 @@ func main() {
 		Addr:    cfg.Host,
 		Handler: r,
 	}
-	log.Printf("Server started at endpoint %s\r\n", defaultEndpoint)
+	log.Printf("Server started at endpoint %s\r\n", cfg.Host)
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}

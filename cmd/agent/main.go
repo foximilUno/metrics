@@ -13,9 +13,9 @@ import (
 )
 
 type Config struct {
-	PollInterval   int64  `env:"POLL_INTERVAL" envDefault:"2"`
-	ReportInterval int64  `env:"REPORT_INTERVAL" envDefault:"10"`
-	URL            string `env:"ADDRESS" envDefault:"http://127.0.0.1:8080"`
+	PollInterval   time.Duration `env:"POLL_INTERVAL" envDefault:"2s"`
+	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
+	URL            string        `env:"ADDRESS" envDefault:"http://127.0.0.1:8080"`
 }
 
 func (c *Config) String() string {
@@ -43,8 +43,8 @@ func main() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
-	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
+	pollTicker := time.NewTicker(cfg.PollInterval)
+	reportTicker := time.NewTicker(cfg.ReportInterval)
 	defer pollTicker.Stop()
 	defer reportTicker.Stop()
 
