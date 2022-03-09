@@ -33,7 +33,6 @@ type Metrics struct {
 
 func readNewMetric(r *http.Request) (*Metrics, error) {
 	bodyBytes, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("can't read request body: %e", err)
 	}
@@ -96,7 +95,6 @@ func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 
 func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-type", "application/json")
 		//check method only POST
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
