@@ -168,10 +168,10 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		if err != nil {
 			log.Println("error reaDMetric:", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			err := SendErrorWithError(w, err)
-			if err != nil {
-				log.Println(err)
-			}
+			//err := SendErrorWithError(w, err)
+			//if err != nil {
+			//	log.Println(err)
+			//}
 			return
 		}
 
