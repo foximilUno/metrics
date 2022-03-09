@@ -289,11 +289,11 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		metric, err := readNewMetric(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-
-			err := SendErrorWithError(w, err)
-			if err != nil {
-				log.Println(err)
-			}
+			//
+			//err := SendErrorWithError(w, err)
+			//if err != nil {
+			//	log.Println(err)
+			//}
 			return
 		}
 
