@@ -182,6 +182,8 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			//if err != nil {
 			//	log.Println(err)
 			//}
+			log.Printf("error metric.Delta == nil && metric.Value == nil: %e\n", err)
+
 			return
 		}
 
@@ -193,6 +195,7 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 				//if err != nil {
 				//	log.Println(err)
 				//}
+				log.Printf("error metric.Value == nil%e\n", err)
 				return
 			}
 			s.SaveGauge(metric.ID, *metric.Value)
@@ -203,6 +206,7 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 				//if err != nil {
 				//	log.Println(err)
 				//}
+				log.Printf("error metric.Delta == nil %e\n", err)
 				return
 			}
 			err = s.SaveCounter(metric.ID, *metric.Delta)
@@ -213,6 +217,8 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 				//if err != nil {
 				//	log.Println(err)
 				//}
+
+				log.Printf("error SaveCounter %e\n", err)
 				return
 			}
 		default:
@@ -222,6 +228,7 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			//if err != nil {
 			//	log.Println(err)
 			//}
+			log.Printf("error StatusNotImplemented %e\n", err)
 			return
 		}
 
