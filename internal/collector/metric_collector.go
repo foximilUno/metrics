@@ -3,7 +3,6 @@ package collector
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/foximilUno/metrics/internal/handlers"
 	"log"
 	"math/rand"
@@ -107,18 +106,14 @@ func (mc *collector) Report() {
 			ID:    v.entityName,
 			MType: v.entityType,
 		}
-
-		switch v.entityType {
-		case gauge:
+		if v.entityType == gauge {
 			newVal := float64(v.entityValue)
 			m.Value = &newVal
-		case counter:
+		}
+		if v.entityType == counter {
 			newVal := int64(v.entityValue)
 			m.Delta = &newVal
-		default:
-			panic(fmt.Sprintf("unsupported for report type of metric: %s", v.entityType))
 		}
-
 		b, err := json.Marshal(m)
 		if err != nil {
 			//TODO what to do)) just logging right now
@@ -131,8 +126,6 @@ func (mc *collector) Report() {
 			log.Println("error while make request", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-
-		fmt.Printf("%+v\n\n", req)
 
 		resp, err := mc.client.Do(req)
 
