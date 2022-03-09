@@ -46,32 +46,6 @@ func readNewMetric(r *http.Request) (*Metrics, error) {
 	return metric, nil
 }
 
-func (m *Metrics) UnmarshalJSON(bytes []byte) error {
-	var requestOnj map[string]interface{}
-	err := json.Unmarshal(bytes, &requestOnj)
-	if err != nil {
-		return err
-	}
-	if v, ok := requestOnj["id"]; ok {
-		m.ID = v.(string)
-	}
-	if v, ok := requestOnj["type"]; ok {
-		m.MType = v.(string)
-	}
-	if v, ok := requestOnj["delta"]; ok {
-		tempDelta, err := strconv.ParseInt(v.(string), 10, 64)
-		if err != nil {
-			return err
-		}
-		m.Delta = &tempDelta
-	}
-	if v, ok := requestOnj["value"]; ok {
-		tempValue := v.(float64)
-		m.Value = &tempValue
-	}
-	return nil
-}
-
 func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
