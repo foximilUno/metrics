@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	Host string `env:"ADDRESS" envDefault:":8080"`
+	Host string `env:"ADDRESS" envDefault:"localhost:8080"`
 }
 
 func main() {
