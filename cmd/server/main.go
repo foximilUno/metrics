@@ -2,13 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/foximilUno/metrics/internal/handlers"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/server"
 	st "github.com/foximilUno/metrics/internal/storage"
-	"github.com/go-chi/chi"
 	"log"
 	"os"
 	"os/signal"
@@ -19,18 +16,15 @@ import (
 func main() {
 	var cfg server.MetricServerConfig
 
-	err := env.Parse(&cfg)
-	if err != nil {
+	if err := env.Parse(&cfg); err != nil {
 		log.Fatalf("cant load metricServer envs: %e", err)
 	}
 
-	err = json.NewEncoder(log.Writer()).Encode(cfg)
-	if err != nil {
+	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
 		return
 	}
-	storage := st.NewMapStorage()
 
-	fmt.Println("ENVS:\r\n", os.Environ())
+	storage := st.NewMapStorage()
 
 	if len(cfg.StoreFile) != 0 {
 		if cfg.Restore {
@@ -50,7 +44,12 @@ func main() {
 		log.Println("function \"Save to file\" is turned off")
 	}
 
-	go runServer(cfg, storage)
+	metricServer, err := server.NewMetricServer(cfg, storage)
+	if err != nil {
+		log.Fatalf("cant start metricServer: %e", err)
+	}
+
+	go metricServer.RunServer()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan,
@@ -60,8 +59,7 @@ func main() {
 
 	<-sigChan
 	log.Println("save on exit")
-	err = storage.SaveToFile(cfg.StoreFile)
-	if err != nil {
+	if err := storage.SaveToFile(cfg.StoreFile); err != nil {
 		log.Println(err)
 		return
 	}
@@ -77,34 +75,5 @@ func dumpToFile(ticker *time.Ticker, storage repositories.MetricSaver, filepath 
 		default:
 			time.Sleep(1 * time.Second)
 		}
-	}
-}
-
-func runServer(cfg server.MetricServerConfig, storage repositories.MetricSaver) {
-	r := chi.NewRouter()
-	r.Route("/", func(r chi.Router) {
-		r.Route("/update", func(r chi.Router) {
-			r.Post("/{metricType}/{metricName}/{metricVal}", handlers.SaveMetricsViaTextPlain(storage))
-			r.Post("/", handlers.SaveMetricsViaJSON(storage))
-
-		})
-
-		r.Route("/value", func(r chi.Router) {
-			r.Get("/{metricType}/{metricName}", handlers.GetMetricViaTextPlain(storage))
-			r.Post("/", handlers.GetMetricViaJSON(storage))
-		})
-	})
-
-	r.Get("/", handlers.GetMetricsTable(storage))
-
-	metricServer, err := server.NewMetricServer(&cfg, r)
-
-	if err != nil {
-		log.Fatalf("cant start server: %e", err)
-	}
-	log.Printf("server started at endpoint %s\n", metricServer.Server.Addr)
-	err = metricServer.Server.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
 	}
 }
