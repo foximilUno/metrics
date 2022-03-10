@@ -23,6 +23,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("cant load metricServer envs: %e", err)
 	}
+	//TODO debug
+	cfg.StoreFile = "/tmp/devops-metrics-db.json"
+
 	err = json.NewEncoder(log.Writer()).Encode(cfg)
 	if err != nil {
 		return
