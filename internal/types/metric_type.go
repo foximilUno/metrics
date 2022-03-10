@@ -16,7 +16,6 @@ type Metrics struct {
 
 func ReadNewMetric(r *http.Request) (*Metrics, error) {
 	bodyBytes, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("can't read request body: %e", err)
 	}
