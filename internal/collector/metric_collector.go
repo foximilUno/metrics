@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/foximilUno/metrics/internal/handlers"
+	"github.com/foximilUno/metrics/internal/types"
 	"log"
 	"math/rand"
 	"net/http"
@@ -107,12 +107,8 @@ func (mc *collector) Report() {
 
 	for _, v := range mc.data {
 		currentURL := mc.baseURL + "/update/"
-		/*
-			по хорошему наверное должна быть своя структура если бы был рест апи стороннего сервиса
-			ну или импорт пакета с сущностями
-			а пока так
-		*/
-		m := handlers.Metrics{
+
+		m := types.Metrics{
 			ID:    v.entityName,
 			MType: v.entityType,
 		}
@@ -134,6 +130,7 @@ func (mc *collector) Report() {
 		}
 
 		req, err := http.NewRequest(http.MethodPost, currentURL, bytes.NewBuffer(b))
+
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Println("error while make request", err)

@@ -36,19 +36,6 @@ func TestSaveMetrics(t *testing.T) {
 				"Only POST allowed\n",
 			},
 		},
-		//TODO if check content type - fails yandex-practicum tests
-		//{
-		//	"test content type check",
-		//	args{
-		//		http.MethodPost,
-		//		"application/json",
-		//		"/update/gauge/metric/1",
-		//	},
-		//	want{
-		//		415,
-		//		"Allowed text/plain only\n",
-		//	},
-		//},
 		{
 			"test path check without update",
 			args{
