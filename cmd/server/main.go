@@ -23,8 +23,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("cant load metricServer envs: %e", err)
 	}
-	//TODO debug
-	cfg.StoreFile = "/tmp/devops-metrics-db.json"
 
 	err = json.NewEncoder(log.Writer()).Encode(cfg)
 	if err != nil {
@@ -44,7 +42,7 @@ func main() {
 			}
 		}
 
-		saveTicker := time.NewTicker(time.Duration(cfg.StoreInterval) * time.Second)
+		saveTicker := time.NewTicker(cfg.StoreInterval)
 
 		go dumpToFile(saveTicker, storage, cfg.StoreFile)
 
