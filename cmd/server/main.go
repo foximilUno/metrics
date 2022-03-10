@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/foximilUno/metrics/internal/handlers"
 	"github.com/foximilUno/metrics/internal/repositories"
@@ -28,13 +29,15 @@ func main() {
 	}
 	storage := st.NewMapStorage()
 
+	fmt.Println("ENVS:\r\n", os.Environ())
+
 	if len(cfg.StoreFile) != 0 {
 		if cfg.Restore {
 			log.Printf("Restore from file %s\r", cfg.StoreFile)
 			err := storage.LoadFromFile(cfg.StoreFile)
 
 			if err != nil {
-				log.Fatalf("cant load from file %s: %e\n", cfg.StoreFile, err)
+				log.Printf("cant load from file %s: %e\n", cfg.StoreFile, err)
 			}
 		}
 
