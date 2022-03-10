@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"github.com/caarlos0/env"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/server"
@@ -13,13 +14,39 @@ import (
 	"time"
 )
 
-func main() {
-	var cfg server.MetricServerConfig
+var cfg server.MetricServerConfig
 
-	if err := env.Parse(&cfg); err != nil {
+//init server config
+func init() {
+	flag.StringVar(&cfg.Host, "a", "localhost:8088", "server url as <host:port>")
+	flag.BoolVar(&cfg.Restore, "r", true, "is restored from file - <true/false>")
+	flag.StringVar(&cfg.StoreFile, "f", "/tmp/devops-metrics-db.json", "path to file to load/save metrics")
+	flag.DurationVar(&cfg.StoreInterval, "i", time.Duration(300*time.Second), "with interval save to file")
+
+	flag.Parse()
+
+	var cfgEnv server.MetricServerConfig
+
+	if err := env.Parse(&cfgEnv); err != nil {
 		log.Fatalf("cant load metricServer envs: %e", err)
 	}
 
+	if len(cfgEnv.Host) != 0 {
+		cfg.Host = cfgEnv.Host
+	}
+	if len(cfgEnv.StoreFile) != 0 {
+		cfg.StoreFile = cfgEnv.StoreFile
+	}
+	if len(os.Getenv("RESTORE")) != 0 {
+		cfg.Restore = cfgEnv.Restore
+	}
+	if len(os.Getenv("STORE_INTERVAL")) != 0 {
+		cfg.StoreInterval = cfgEnv.StoreInterval
+	}
+
+}
+
+func main() {
 	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
 		return
 	}
@@ -38,7 +65,18 @@ func main() {
 
 		saveTicker := time.NewTicker(cfg.StoreInterval)
 
-		go dumpToFile(saveTicker, storage, cfg.StoreFile)
+		go func(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
+			for {
+				select {
+				case <-ticker.C:
+					if err := storage.SaveToFile(filepath); err != nil {
+						log.Fatalf("cant save to file\"%s\", err:%e", filepath, err)
+					}
+				default:
+					time.Sleep(1 * time.Second)
+				}
+			}
+		}(saveTicker, storage, cfg.StoreFile)
 
 	} else {
 		log.Println("function \"Save to file\" is turned off")
@@ -62,18 +100,5 @@ func main() {
 	if err := storage.SaveToFile(cfg.StoreFile); err != nil {
 		log.Println(err)
 		return
-	}
-}
-
-func dumpToFile(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
-	for {
-		select {
-		case <-ticker.C:
-			if err := storage.SaveToFile(filepath); err != nil {
-				log.Fatalf("cant save to file\"%s\", err:%e", filepath, err)
-			}
-		default:
-			time.Sleep(1 * time.Second)
-		}
 	}
 }

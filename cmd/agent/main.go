@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/foximilUno/metrics/internal/collector"
+	"github.com/foximilUno/metrics/internal/types"
 	"log"
 	"math/rand"
 	"os"
@@ -12,24 +14,32 @@ import (
 	"time"
 )
 
-type Config struct {
-	PollInterval   time.Duration `env:"POLL_INTERVAL" envDefault:"2s"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
-	URL            string        `env:"ADDRESS" envDefault:"http://127.0.0.1:8080"`
-}
+var cfg types.Config
 
-func (c *Config) String() string {
-	return fmt.Sprintf("Config: PollInterval: %s, ReportInterval: %s, URL: \"%s\"",
-		c.PollInterval,
-		c.ReportInterval,
-		c.URL)
+func init() {
+	flag.StringVar(&cfg.URL, "a", "http://127.0.0.1:8080", "endpoint where metric send")
+	flag.DurationVar(&cfg.PollInterval, "p", 2*time.Second, "in what time metric collect in host")
+	flag.DurationVar(&cfg.ReportInterval, "r", 10*time.Second, "in what time metric push to server")
+
+	flag.Parse()
+
+	var cfgEnv types.Config
+
+	if _, isPresent := os.LookupEnv("ADDRESS"); isPresent {
+		cfg.URL = cfgEnv.URL
+	}
+	if _, isPresent := os.LookupEnv("POLL_INTERVAL"); isPresent {
+		cfg.PollInterval = cfgEnv.PollInterval
+	}
+	if _, isPresent := os.LookupEnv("REPORT_INTERVAL"); isPresent {
+		cfg.ReportInterval = cfgEnv.ReportInterval
+	}
 }
 
 func main() {
 	//TODO debug
 	fmt.Println(os.Environ())
 
-	var cfg Config
 	err := env.Parse(&cfg)
 	if err != nil {
 		log.Fatalf("cant start agent: %e", err)
