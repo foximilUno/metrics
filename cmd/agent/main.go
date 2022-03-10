@@ -19,13 +19,15 @@ type Config struct {
 }
 
 func (c *Config) String() string {
-	return fmt.Sprintf("Config: PollInterval: %ds, ReportInterval: %ds, URL: \"%s\"",
+	return fmt.Sprintf("Config: PollInterval: %s, ReportInterval: %s, URL: \"%s\"",
 		c.PollInterval,
 		c.ReportInterval,
 		c.URL)
 }
 
 func main() {
+	//TODO debug
+	fmt.Println(os.Environ())
 
 	var cfg Config
 	err := env.Parse(&cfg)
