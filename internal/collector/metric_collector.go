@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -29,7 +30,15 @@ type collector struct {
 	client  *http.Client
 }
 
-func NewMetricCollector(baseURL string) *collector {
+func NewMetricCollector(URL string) *collector {
+	var baseURL string
+	//contains http/https
+	if strings.Contains(URL, "http") {
+		baseURL = URL
+	} else {
+		baseURL = "http://" + URL
+	}
+
 	return &collector{
 		baseURL,
 		make(map[string]*MetricEntity),
