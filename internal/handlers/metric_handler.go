@@ -101,7 +101,6 @@ func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 
 func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-type", "application/json")
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			err := SendErrorWithString(w, "only POST allowed")
@@ -223,7 +222,6 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 
 func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-type", "application/json")
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 

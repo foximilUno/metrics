@@ -19,6 +19,7 @@ func ReadNewMetric(r *http.Request) (*Metrics, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can't read request body: %e", err)
 	}
+	defer r.Body.Close()
 	var metric *Metrics
 	err = json.Unmarshal(bodyBytes, &metric)
 
