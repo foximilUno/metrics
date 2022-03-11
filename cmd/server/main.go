@@ -18,7 +18,7 @@ var cfg server.MetricServerConfig
 
 //init server config
 func init() {
-	flag.StringVar(&cfg.Host, "a", "localhost:8088", "server url as <host:port>")
+	flag.StringVar(&cfg.Host, "a", "localhost:8080", "server url as <host:port>")
 	flag.BoolVar(&cfg.Restore, "r", true, "is restored from file - <true/false>")
 	flag.StringVar(&cfg.StoreFile, "f", "/tmp/devops-metrics-db.json", "path to file to load/save metrics")
 	flag.DurationVar(&cfg.StoreInterval, "i", time.Duration(300*time.Second), "with interval save to file")
