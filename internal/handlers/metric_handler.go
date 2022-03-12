@@ -149,7 +149,7 @@ func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
 
 		if len(segments) != 4 {
-			http.Error(w, "path must be pattern like /value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
+			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
 			return
 		}
 		metric, err := ReadNewMetricByTextPlain(segments)

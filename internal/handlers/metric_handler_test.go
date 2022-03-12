@@ -25,18 +25,6 @@ func TestSaveMetrics(t *testing.T) {
 		want want
 	}{
 		{
-			"test service check method",
-			args{
-				http.MethodGet,
-				"",
-				"",
-			},
-			want{
-				405,
-				"Only POST allowed\n",
-			},
-		},
-		{
 			"test path check without update",
 			args{
 				http.MethodPost,
