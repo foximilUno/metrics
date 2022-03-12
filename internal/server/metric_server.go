@@ -16,6 +16,7 @@ type server struct {
 
 func NewMetricServer(cfg *config.MetricServerConfig, storage repositories.MetricSaver) (*server, error) {
 	r := chi.NewRouter()
+	r.Use(handlers.GzipDecompressHandler)
 	r.Route("/", func(r chi.Router) {
 		r.Route("/update", func(r chi.Router) {
 			r.Post("/{metricType}/{metricName}/{metricVal}", handlers.SaveMetricsViaTextPlain(storage))
