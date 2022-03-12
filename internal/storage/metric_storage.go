@@ -28,8 +28,6 @@ func NewMapStorage() repositories.MetricSaver {
 
 func (srm *MapStorage) LoadFromFile(filename string) error {
 
-	fmt.Println("load", filename)
-
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err

@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/foximilUno/metrics/internal/repositories"
@@ -80,6 +83,28 @@ func ReadNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
 		}
 	}
 	return metric, nil
+}
+
+func ReturnData(w http.ResponseWriter, r *http.Request, data []byte) error {
+	var err error
+	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		var b bytes.Buffer
+		gzC := gzip.NewWriter(&b)
+
+		_, err = gzC.Write(data)
+		if err != nil {
+			return err
+		}
+		err = gzC.Close()
+		if err != nil {
+			return err
+		}
+		encodeToString := base64.RawStdEncoding.EncodeToString(b.Bytes())
+		_, err = w.Write([]byte(encodeToString))
+	} else {
+		_, err = w.Write(data)
+	}
+	return err
 }
 
 func CommonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, error) {
@@ -205,9 +230,9 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 
-		_, err = w.Write([]byte(strResult))
+		err = ReturnData(w, r, []byte(strResult))
 		if err != nil {
-			return
+			SendError(http.StatusInternalServerError, w, "error while gzipping")
 		}
 		w.WriteHeader(http.StatusOK)
 	}
@@ -224,6 +249,7 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		_, httpStatus, err := CommonGetMetric(metric, s)
 		if err != nil {
 			SendError(httpStatus, w, err.Error())
+			return
 		}
 
 		bb, err := json.Marshal(metric)
@@ -232,8 +258,10 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, err = w.Write(bb)
+		//w.Header().Set("Content-Encoding", "gzip")
+		err = ReturnData(w, r, bb)
 		if err != nil {
+			SendError(http.StatusInternalServerError, w, "error while zipping")
 			return
 		}
 		w.WriteHeader(http.StatusOK)
