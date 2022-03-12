@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/foximilUno/metrics/internal/repositories"
+	"github.com/foximilUno/metrics/internal/types"
 	"log"
 	"net/http"
 	"reflect"
@@ -11,7 +13,6 @@ import (
 )
 
 const (
-	//defaultApplicationType = "text/plain"
 	preHTML   = `<html><header></header><body><div><table border="solid"><caption>Metrics</caption><tr><th>metricName</th><th>metricVal</th></tr>`
 	postHTML  = `</table></div></body>`
 	trPattern = `<tr><td><a href="/value/%s/%s">%s</a></td><td>%s</td></tr>`
@@ -22,20 +23,40 @@ var allowedTypes = map[string]string{
 	"counter": "counter",
 }
 
-func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
+type ResultError struct {
+	Error string
+}
+
+func SendErrorWithString(w http.ResponseWriter, stringVal string) error {
+	err := json.NewEncoder(w).Encode(
+		&ResultError{
+			stringVal,
+		})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SendErrorWithError(w http.ResponseWriter, errorVal error) error {
+	err := json.NewEncoder(w).Encode(
+		&ResultError{
+			errorVal.Error(),
+		})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		//check method only POST
 		if r.Method != http.MethodPost {
 			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 			return
 		}
-
-		////check content type only defaultApplicationType
-		//if r.Header.Get("Content-type") != defaultApplicationType {
-		//	w.Header().Add("Allowed", "text/plain")
-		//	http.Error(w, "Allowed text/plain only", http.StatusUnsupportedMediaType)
-		//	return
-		//}
 
 		//check elements in path
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
@@ -78,7 +99,86 @@ func SaveMetrics(s repositories.MetricSaver) http.HandlerFunc {
 	}
 }
 
-func GetMetric(s repositories.MetricSaver) http.HandlerFunc {
+func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			err := SendErrorWithString(w, "only POST allowed")
+			if err != nil {
+				log.Println(err)
+			}
+			return
+		}
+
+		metric, err := types.ReadNewMetric(r)
+
+		if err != nil {
+			log.Println("error reaDMetric:", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			err := SendErrorWithError(w, err)
+			if err != nil {
+				log.Println(err)
+			}
+			return
+		}
+
+		if metric.Delta == nil && metric.Value == nil {
+			w.WriteHeader(http.StatusBadRequest)
+
+			err := SendErrorWithString(w, "delta or value must not be empty")
+			if err != nil {
+				log.Println(err)
+			}
+			return
+		}
+
+		switch metric.MType {
+		case "gauge":
+			if metric.Value == nil {
+				w.WriteHeader(http.StatusBadRequest)
+				err := SendErrorWithString(w, "value cant be empty")
+				if err != nil {
+					log.Println(err)
+				}
+				return
+			}
+			s.SaveGauge(metric.ID, *metric.Value)
+		case "counter":
+			if metric.Delta == nil {
+				w.WriteHeader(http.StatusBadRequest)
+				err := SendErrorWithString(w, "delta cant be empty")
+				if err != nil {
+					log.Println(err)
+				}
+				return
+			}
+			err = s.SaveCounter(metric.ID, *metric.Delta)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
+				return
+			}
+		default:
+			w.WriteHeader(http.StatusNotImplemented)
+
+			err := SendErrorWithString(w, fmt.Sprintf("bad request: %s cant be, use %s", metric.ID, reflect.ValueOf(allowedTypes).MapKeys()))
+			if err != nil {
+				log.Println(err)
+			}
+			return
+		}
+
+		log.Printf("invoked update metric with type \"%s\" witn name \"%s\" with value \"%d\"|\"%d\"", metric.MType, metric.ID, metric.Value, metric.Delta)
+
+		w.WriteHeader(200)
+	}
+}
+
+func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
@@ -113,6 +213,101 @@ func GetMetric(s repositories.MetricSaver) http.HandlerFunc {
 			w.WriteHeader(http.StatusNotFound)
 		}
 		_, err = w.Write([]byte(result))
+		if err != nil {
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+
+			err := SendErrorWithString(w, "only POST allowed")
+			if err != nil {
+				log.Println(err)
+			}
+			return
+		}
+
+		metric, err := types.ReadNewMetric(r)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+
+			err := SendErrorWithError(w, err)
+			if err != nil {
+				log.Println(err)
+			}
+			return
+		}
+
+		var result string
+		switch metric.MType {
+		case "gauge":
+			result, err = s.GetGaugeMetricAsString(metric.ID)
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
+				return
+			}
+			val, err := strconv.ParseFloat(result, 64)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
+				return
+			}
+			metric.Value = &val
+		case "counter":
+			result, err = s.GetCounterMetricAsString(metric.ID)
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
+				return
+			}
+			val, err := strconv.ParseInt(result, 10, 64)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				err := SendErrorWithError(w, err)
+				if err != nil {
+					log.Println(err)
+				}
+				return
+			}
+			metric.Delta = &val
+		default:
+			w.WriteHeader(http.StatusNotImplemented)
+
+			err := SendErrorWithString(w, fmt.Sprintf("bad request: %s cant be, use %s", metric.MType, reflect.ValueOf(allowedTypes).MapKeys()))
+			if err != nil {
+				log.Println(err)
+			}
+			return
+		}
+
+		bb, err := json.Marshal(metric)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			err := SendErrorWithError(w, err)
+			if err != nil {
+				log.Println(err)
+			}
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write(bb)
 		if err != nil {
 			return
 		}

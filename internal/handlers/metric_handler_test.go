@@ -36,19 +36,6 @@ func TestSaveMetrics(t *testing.T) {
 				"Only POST allowed\n",
 			},
 		},
-		//TODO if check content type - fails yandex-practicum tests
-		//{
-		//	"test content type check",
-		//	args{
-		//		http.MethodPost,
-		//		"application/json",
-		//		"/update/gauge/metric/1",
-		//	},
-		//	want{
-		//		415,
-		//		"Allowed text/plain only\n",
-		//	},
-		//},
 		{
 			"test path check without update",
 			args{
@@ -116,7 +103,7 @@ func TestSaveMetrics(t *testing.T) {
 			assert.NoError(t, err)
 			req.Header.Set("Content-type", tt.args.contentType)
 			w := httptest.NewRecorder()
-			h := SaveMetrics(storage.NewMapStorage())
+			h := SaveMetricsViaTextPlain(storage.NewMapStorage())
 			h.ServeHTTP(w, req)
 			r := w.Result()
 			body, err := ioutil.ReadAll(r.Body)

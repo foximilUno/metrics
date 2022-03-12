@@ -1,11 +1,16 @@
 package collector
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"github.com/foximilUno/metrics/internal/types"
 	"log"
 	"math/rand"
 	"net/http"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -25,7 +30,15 @@ type collector struct {
 	client  *http.Client
 }
 
-func NewMetricCollector(baseURL string) *collector {
+func NewMetricCollector(URL string) *collector {
+	var baseURL string
+	//contains http/https
+	if strings.Contains(URL, "http") {
+		baseURL = URL
+	} else {
+		baseURL = "http://" + URL
+	}
+
 	return &collector{
 		baseURL,
 		make(map[string]*MetricEntity),
@@ -83,6 +96,7 @@ func (mc *collector) Collect() {
 	mc.addGauge("StackSys", stats.StackSys)
 	mc.addGauge("Sys", stats.Sys)
 	mc.addGauge("RandomValue", rand.Uint64())
+	mc.addGauge("TotalAlloc", stats.TotalAlloc)
 	mc.increaseCounter("PollCount")
 
 	log.Printf("Poll %s\r\n", strconv.FormatUint(mc.data["PollCount"].entityValue, 10))
@@ -92,19 +106,42 @@ func (mc *collector) Report() {
 	log.Println("Report to server collect data")
 
 	for _, v := range mc.data {
-		currentURL := mc.baseURL + "/update" + "/" + v.entityType + "/" + v.entityName + "/" + strconv.FormatUint(v.entityValue, 10)
-		req, err := http.NewRequest(http.MethodPost, currentURL, nil)
+		currentURL := mc.baseURL + "/update/"
+
+		m := types.Metrics{
+			ID:    v.entityName,
+			MType: v.entityType,
+		}
+
+		switch v.entityType {
+		case gauge:
+			newVal := float64(v.entityValue)
+			m.Value = &newVal
+		case counter:
+			newVal := int64(v.entityValue)
+			m.Delta = &newVal
+		default:
+			panic(fmt.Sprintf("unsupported for report type of metric: %s", v.entityType))
+		}
+		b, err := json.Marshal(m)
+		if err != nil {
+			//TODO what to do)) just logging right now
+			log.Println("error while marshalling", err)
+		}
+
+		req, err := http.NewRequest(http.MethodPost, currentURL, bytes.NewBuffer(b))
+
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Println("error while make request", err)
 		}
-		req.Header.Set("Content-Type", "text/plain")
+		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := mc.client.Do(req)
 
 		if err != nil {
 			//TODO what to do)) just logging right now
-			log.Fatalf("error while send request: %e", err)
+			log.Printf("error while send request: %e\n", err)
 			return
 		}
 

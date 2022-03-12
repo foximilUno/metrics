@@ -207,7 +207,7 @@ func Test_collector_Collect(t *testing.T) {
 				make(map[string]*MetricEntity),
 			},
 			1,
-			28,
+			29,
 		},
 		{
 			"check two runs filled map",
@@ -216,7 +216,7 @@ func Test_collector_Collect(t *testing.T) {
 				make(map[string]*MetricEntity),
 			},
 			2,
-			28,
+			29,
 		},
 	}
 	for _, tt := range tests {
