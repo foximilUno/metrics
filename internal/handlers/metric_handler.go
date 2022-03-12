@@ -160,6 +160,7 @@ func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 
 		if status, err := CommonSaveMetric(metric, s); err != nil {
 			SendError(status, w, err.Error())
+			return
 		}
 		w.WriteHeader(200)
 	}
@@ -199,6 +200,7 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 		strResult, err, httpStatus := CommonGetMetric(metric, s)
 		if err != nil {
 			SendError(httpStatus, w, err.Error())
+			return
 		}
 
 		_, err = w.Write([]byte(strResult))
