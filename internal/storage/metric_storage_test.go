@@ -86,7 +86,10 @@ func TestMapStorage_SaveCounter(t *testing.T) {
 				gauges:   tt.fields.gauges,
 				counters: tt.fields.counters,
 			}
-			srm.SaveCounter(tt.args.name, tt.args.val)
+			err := srm.SaveCounter(tt.args.name, tt.args.val)
+			if err != nil {
+				return
+			}
 			assert.Equal(t, tt.want.expectedGaugeLen, len(srm.gauges))
 			assert.Equal(t, tt.want.expectedCounterLen, len(srm.counters))
 		})

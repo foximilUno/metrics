@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"github.com/caarlos0/env"
@@ -29,7 +28,7 @@ func InitMetricServerConfig() (*MetricServerConfig, error) {
 	var cfgEnv MetricServerConfig
 
 	if err := env.Parse(&cfgEnv); err != nil {
-		return nil, errors.New(fmt.Sprintf("cant load metricServer envs: %e", err))
+		return nil, fmt.Errorf("cant load metricServer envs: %e", err)
 	}
 
 	if len(cfgEnv.Host) != 0 {

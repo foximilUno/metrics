@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/types"
@@ -59,7 +58,7 @@ func ReadNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
 	metric := &types.Metrics{}
 
 	if len(pathArray[2]) == 0 {
-		return nil, errors.New("metric name cant be empty")
+		return nil, fmt.Errorf("metric name cant be empty")
 	}
 
 	metric.MType = pathArray[1]
@@ -68,49 +67,48 @@ func ReadNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
 	case "gauge":
 		val, err := strconv.ParseFloat(pathArray[3], 64)
 		if err != nil {
-			log.Println(err)
+			return nil, err
 		}
 		metric.Value = &val
 	case "counter":
 		val, err := strconv.ParseInt(pathArray[3], 10, 64)
 		if err != nil {
-			log.Println(err)
+			return nil, err
 		}
 		metric.Delta = &val
 	}
-
 	return metric, nil
 }
 
-func CommonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (error, int) {
+func CommonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, error) {
 	switch metric.MType {
 	case "gauge":
 		if metric.Value == nil {
-			return errors.New("value cant be empty"), http.StatusBadRequest
+			return http.StatusBadRequest, fmt.Errorf("value cant be empty")
 		}
 		s.SaveGauge(metric.ID, *metric.Value)
 	case "counter":
 		if metric.Delta == nil {
-			return errors.New("delta cant be empty"), http.StatusBadRequest
+			return http.StatusBadRequest, fmt.Errorf("delta cant be empty")
 		}
 		if err := s.SaveCounter(metric.ID, *metric.Delta); err != nil {
-			return err, http.StatusNotImplemented
+			return http.StatusNotImplemented, err
 		}
 	default:
-		return errors.New(fmt.Sprintf(
-				"bad request: %s cant be, use %s",
+		return http.StatusNotImplemented,
+			fmt.Errorf("bad request: %s cant be, use %s",
 				metric.ID,
-				reflect.ValueOf(allowedTypes).MapKeys())),
-			http.StatusBadRequest
+				reflect.ValueOf(allowedTypes).MapKeys())
 	}
 
 	log.Printf("invoked update metric")
 	if err := json.NewEncoder(log.Writer()).Encode(metric); err != nil {
 		fmt.Println("cant encode metric object")
 	}
-	return nil, 0
+	return 0, nil
 }
 
+// CommonGetMetric return string value of metric and save metric value/delta to parameter object
 func CommonGetMetric(metric *types.Metrics, s repositories.MetricSaver) (string, error, int) {
 	var result string
 	var err error
@@ -137,10 +135,9 @@ func CommonGetMetric(metric *types.Metrics, s repositories.MetricSaver) (string,
 		metric.Delta = &val
 	default:
 		return "",
-			errors.New(fmt.Sprintf(
-				"Bad request: %s cant be, use %s",
+			fmt.Errorf("bad request: %s cant be, use %s",
 				metric.ID,
-				reflect.ValueOf(allowedTypes).MapKeys())),
+				reflect.ValueOf(allowedTypes).MapKeys()),
 			http.StatusNotImplemented
 	}
 	return result, nil, 0
@@ -161,7 +158,7 @@ func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 
-		if err, status := CommonSaveMetric(metric, s); err != nil {
+		if status, err := CommonSaveMetric(metric, s); err != nil {
 			SendError(status, w, err.Error())
 		}
 		w.WriteHeader(200)
@@ -176,7 +173,7 @@ func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 
-		if err, status := CommonSaveMetric(metric, s); err != nil {
+		if status, err := CommonSaveMetric(metric, s); err != nil {
 			SendError(status, w, err.Error())
 		}
 		w.WriteHeader(200)
