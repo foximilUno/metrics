@@ -63,19 +63,21 @@ func ReadNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
 
 	metric.MType = pathArray[1]
 	metric.ID = pathArray[2]
-	switch metric.MType {
-	case "gauge":
-		val, err := strconv.ParseFloat(pathArray[3], 64)
-		if err != nil {
-			return nil, err
+	if len(pathArray) == 4 {
+		switch metric.MType {
+		case "gauge":
+			val, err := strconv.ParseFloat(pathArray[3], 64)
+			if err != nil {
+				return nil, err
+			}
+			metric.Value = &val
+		case "counter":
+			val, err := strconv.ParseInt(pathArray[3], 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			metric.Delta = &val
 		}
-		metric.Value = &val
-	case "counter":
-		val, err := strconv.ParseInt(pathArray[3], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		metric.Delta = &val
 	}
 	return metric, nil
 }
