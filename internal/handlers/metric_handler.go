@@ -109,38 +109,38 @@ func CommonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, e
 }
 
 // CommonGetMetric return string value of metric and save metric value/delta to parameter object
-func CommonGetMetric(metric *types.Metrics, s repositories.MetricSaver) (string, error, int) {
+func CommonGetMetric(metric *types.Metrics, s repositories.MetricSaver) (string, int, error) {
 	var result string
 	var err error
 	switch metric.MType {
 	case "gauge":
 		result, err = s.GetGaugeMetricAsString(metric.ID)
 		if err != nil {
-			return "", err, http.StatusNotFound
+			return "", http.StatusNotFound, err
 		}
 		val, err := strconv.ParseFloat(result, 64)
 		if err != nil {
-			return "", err, http.StatusInternalServerError
+			return "", http.StatusInternalServerError, err
 		}
 		metric.Value = &val
 	case "counter":
 		result, err = s.GetCounterMetricAsString(metric.ID)
 		if err != nil {
-			return "", err, http.StatusNotFound
+			return "", http.StatusNotFound, err
 		}
 		val, err := strconv.ParseInt(result, 10, 64)
 		if err != nil {
-			return "", err, http.StatusInternalServerError
+			return "", http.StatusInternalServerError, err
 		}
 		metric.Delta = &val
 	default:
 		return "",
+			http.StatusNotImplemented,
 			fmt.Errorf("bad request: %s cant be, use %s",
 				metric.ID,
-				reflect.ValueOf(allowedTypes).MapKeys()),
-			http.StatusNotImplemented
+				reflect.ValueOf(allowedTypes).MapKeys())
 	}
-	return result, nil, 0
+	return result, 0, nil
 }
 
 func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
@@ -197,7 +197,7 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 
-		strResult, err, httpStatus := CommonGetMetric(metric, s)
+		strResult, httpStatus, err := CommonGetMetric(metric, s)
 		if err != nil {
 			SendError(httpStatus, w, err.Error())
 			return
@@ -219,7 +219,7 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 
-		_, err, httpStatus := CommonGetMetric(metric, s)
+		_, httpStatus, err := CommonGetMetric(metric, s)
 		if err != nil {
 			SendError(httpStatus, w, err.Error())
 		}
