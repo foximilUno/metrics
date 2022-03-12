@@ -1,27 +1,20 @@
 package server
 
 import (
+	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/handlers"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/go-chi/chi"
 	"log"
 	"net/http"
-	"time"
 )
-
-type MetricServerConfig struct {
-	Host          string        `json:"host" env:"ADDRESS"`
-	StoreInterval time.Duration `json:"storeInterval" env:"STORE_INTERVAL"`
-	StoreFile     string        `json:"storeFile" env:"STORE_FILE"`
-	Restore       bool          `json:"isRestored" env:"RESTORE"`
-}
 
 type server struct {
 	Server  *http.Server
 	storage repositories.MetricSaver
 }
 
-func NewMetricServer(cfg MetricServerConfig, storage repositories.MetricSaver) (*server, error) {
+func NewMetricServer(cfg *config.MetricServerConfig, storage repositories.MetricSaver) (*server, error) {
 	r := chi.NewRouter()
 	r.Route("/", func(r chi.Router) {
 		r.Route("/update", func(r chi.Router) {
