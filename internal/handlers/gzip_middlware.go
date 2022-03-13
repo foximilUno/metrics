@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -20,18 +19,7 @@ func GzipDecompressHandler(next http.Handler) http.Handler {
 			}
 			defer r.Body.Close()
 			fmt.Println("GzipDecompressHandler", string(bodyBytes))
-			textDecoded := make([]byte, len(bodyBytes))
-			_, err = base64.RawStdEncoding.Decode(textDecoded, bodyBytes)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-
-			fmt.Println("bytes", string(textDecoded))
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			gzR, err := gzip.NewReader(bytes.NewReader(textDecoded))
+			gzR, err := gzip.NewReader(bytes.NewReader(bodyBytes))
 			gzR.Multistream(false)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
