@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/foximilUno/metrics/internal/repositories"
@@ -103,11 +102,10 @@ func ReturnData(w http.ResponseWriter, r *http.Request, data []byte) error {
 		if err != nil {
 			return err
 		}
-		encodeToString := base64.RawStdEncoding.EncodeToString(b.Bytes())
-		fmt.Println("compress", encodeToString)
+		fmt.Println("compress", string(b.Bytes()))
 		//w.Header().Set("Content-Type", "application/base64")
 		w.Header().Set("Content-Encoding", "gzip")
-		_, err = w.Write([]byte(encodeToString))
+		_, err = w.Write(b.Bytes())
 	} else {
 
 		fmt.Println("withoit compress", string(data))
