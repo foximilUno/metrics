@@ -85,12 +85,12 @@ func ReadNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
 	return metric, nil
 }
 
-func ReturnData(w http.ResponseWriter, r *http.Request, data []byte) error {
+func ReturnData(w http.ResponseWriter, r *http.Request, data []byte, contentType string) error {
 	var err error
 	//DEBUG
 	fmt.Println("ReturnData", string(data))
 	fmt.Println(r.Header.Get("Accept-Encoding"))
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", contentType)
 	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 		var b bytes.Buffer
 		gzC := gzip.NewWriter(&b)
@@ -265,7 +265,7 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			SendError(http.StatusInternalServerError, w, err.Error())
 			return
 		}
-		err = ReturnData(w, r, bb)
+		err = ReturnData(w, r, bb, "application/json")
 		if err != nil {
 			SendError(http.StatusInternalServerError, w, "error while zipping")
 			return
@@ -286,10 +286,10 @@ func GetMetricsTable(s repositories.MetricSaver) http.HandlerFunc {
 			response = append(response, []byte(fmt.Sprintf(trPattern, "counter", v, v, n))...)
 		}
 		response = append(response, []byte(postHTML)...)
-		_, err := w.Write(response)
+		err := ReturnData(w, r, response, "text/html")
 		if err != nil {
+			SendError(http.StatusInternalServerError, w, "error while zipping")
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 	}
 }
