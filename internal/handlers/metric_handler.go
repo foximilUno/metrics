@@ -44,6 +44,7 @@ func SendError(httpStatusCode int, w http.ResponseWriter, stringVal string) {
 
 func ReadNewMetricByJSON(r *http.Request) (*types.Metrics, error) {
 	bodyBytes, err := ioutil.ReadAll(r.Body)
+	fmt.Println("ReadNewMetricByJSON", string(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("can't read request body: %e", err)
 	}
@@ -230,11 +231,11 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 
-		err = ReturnData(w, r, []byte(strResult))
-		if err != nil {
-			SendError(http.StatusInternalServerError, w, "error while gzipping")
-		}
 		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(strResult))
+		if err != nil {
+			SendError(http.StatusInternalServerError, w, "error while writing")
+		}
 	}
 }
 
@@ -259,12 +260,12 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		//w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(http.StatusOK)
 		err = ReturnData(w, r, bb)
 		if err != nil {
 			SendError(http.StatusInternalServerError, w, "error while zipping")
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 	}
 }
 

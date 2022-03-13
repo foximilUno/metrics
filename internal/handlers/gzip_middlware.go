@@ -6,39 +6,43 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"strings"
 )
 
 func GzipDecompressHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("catch", r.Header.Get("Content-Encoding"))
-		if r.Header.Get("Content-Encoding") == "gzip" {
-			rb, err := ioutil.ReadAll(r.Body)
+		bodyBytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		fmt.Println("GzipDecompressHandler", string(bodyBytes))
+		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+
+			textDecoded := make([]byte, len(bodyBytes))
+			_, err = base64.RawStdEncoding.Decode(textDecoded, bodyBytes)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
-			fromBase64Bytes, err := base64.StdEncoding.DecodeString(string(rb))
+
+			fmt.Println("bytes", string(textDecoded))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			gzR, err := gzip.NewReader(bytes.NewReader(fromBase64Bytes))
+			gzR, err := gzip.NewReader(bytes.NewReader(textDecoded))
+			gzR.Multistream(false)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			b, err := ioutil.ReadAll(gzR)
+			resultBytes, err := ioutil.ReadAll(gzR)
 			if err != nil {
-				fmt.Println("read gzr bytes", err)
+				fmt.Print("error at stage 2: " + err.Error())
 			}
-			fmt.Println(string(b))
-			defer func(gzR *gzip.Reader) {
-				err := gzR.Close()
-				if err != nil {
-					log.Println(err)
-				}
-			}(gzR)
+
+			fmt.Println("GzipDecompressHandler after decompress", string(resultBytes))
+			r.Body = ioutil.NopCloser(bytes.NewReader(resultBytes))
 		}
 		next.ServeHTTP(w, r)
 	})
