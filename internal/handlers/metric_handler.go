@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/foximilUno/metrics/internal/repositories"
@@ -91,28 +88,28 @@ func ReturnData(w http.ResponseWriter, r *http.Request, data []byte) error {
 	//DEBUG
 	fmt.Println("ReturnData", string(data))
 	fmt.Println(r.Header.Get("Accept-Encoding"))
-	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-		var b bytes.Buffer
-		gzC := gzip.NewWriter(&b)
-
-		_, err = gzC.Write(data)
-		if err != nil {
-			return err
-		}
-		err = gzC.Close()
-		if err != nil {
-			return err
-		}
-		encodeToString := base64.RawStdEncoding.EncodeToString(b.Bytes())
-		fmt.Println("compress", encodeToString)
-		w.Header().Set("Content-Type", "application/base64")
-		//w.Header().Set("Content-Encoding", "gzip")
-		_, err = w.Write([]byte(encodeToString))
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Println("withoit compress", string(data))
-		_, err = w.Write(data)
-	}
+	//if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+	//	var b bytes.Buffer
+	//	gzC := gzip.NewWriter(&b)
+	//
+	//	_, err = gzC.Write(data)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	err = gzC.Close()
+	//	if err != nil {
+	//		return err
+	//	}
+	//	encodeToString := base64.RawStdEncoding.EncodeToString(b.Bytes())
+	//	fmt.Println("compress", encodeToString)
+	//	w.Header().Set("Content-Type", "application/base64")
+	//	//w.Header().Set("Content-Encoding", "gzip")
+	//	_, err = w.Write([]byte(encodeToString))
+	//} else {
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Println("withoit compress", string(data))
+	_, err = w.Write(data)
+	//}
 	w.WriteHeader(http.StatusOK)
 	return err
 }
