@@ -105,6 +105,7 @@ func ReturnData(w http.ResponseWriter, r *http.Request, data []byte) error {
 		}
 		encodeToString := base64.RawStdEncoding.EncodeToString(b.Bytes())
 		fmt.Println("compress", encodeToString)
+		w.Header().Set("Content-Encoding", "gzip")
 		_, err = w.Write([]byte(encodeToString))
 	} else {
 		fmt.Println("withoit compress", string(data))
@@ -265,7 +266,6 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		//w.Header().Set("Content-Encoding", "gzip")
 		err = ReturnData(w, r, bb)
 		if err != nil {
 			SendError(http.StatusInternalServerError, w, "error while zipping")
