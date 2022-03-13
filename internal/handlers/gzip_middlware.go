@@ -12,13 +12,14 @@ import (
 
 func GzipDecompressHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bodyBytes, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-		fmt.Println("GzipDecompressHandler", string(bodyBytes))
-		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 
+		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+			bodyBytes, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			defer r.Body.Close()
+			fmt.Println("GzipDecompressHandler", string(bodyBytes))
 			textDecoded := make([]byte, len(bodyBytes))
 			_, err = base64.RawStdEncoding.Decode(textDecoded, bodyBytes)
 			if err != nil {
