@@ -91,7 +91,6 @@ func ReturnData(w http.ResponseWriter, r *http.Request, data []byte) error {
 	fmt.Println("ReturnData", string(data))
 	fmt.Println(r.Header.Get("Accept-Encoding"))
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 		var b bytes.Buffer
 		gzC := gzip.NewWriter(&b)
