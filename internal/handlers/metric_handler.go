@@ -88,7 +88,9 @@ func ReadNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
 
 func ReturnData(w http.ResponseWriter, r *http.Request, data []byte) error {
 	var err error
+	//DEBUG
 	fmt.Println("ReturnData", string(data))
+	fmt.Println(r.Header.Get("Accept-Encoding"))
 	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 		var b bytes.Buffer
 		gzC := gzip.NewWriter(&b)
