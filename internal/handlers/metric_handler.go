@@ -101,7 +101,6 @@ func returnData(w http.ResponseWriter, r *http.Request, data []byte, contentType
 		if err != nil {
 			return err
 		}
-		//w.Header().Set("Content-Type", "application/base64")
 		w.Header().Set("Content-Encoding", "gzip")
 		_, err = w.Write(b.Bytes())
 	} else {

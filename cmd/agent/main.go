@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/foximilUno/metrics/internal/collector"
 	"github.com/foximilUno/metrics/internal/config"
 	"log"
@@ -19,7 +20,10 @@ func main() {
 
 	log.Println("agent started")
 
-	log.Println(cfg.String())
+	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
+		log.Fatal("encoder err")
+	}
+	//log.Println(cfg.String())
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan,

@@ -13,7 +13,7 @@ import (
 
 func getAesGSMWithNonce(keyString string) (cipher.AEAD, []byte, error) {
 	key32 := sha256.Sum256([]byte(keyString))
-	key := key32[:]
+	key := key32[:16]
 
 	aesBlock, err := aes.NewCipher(key)
 	if err != nil {
