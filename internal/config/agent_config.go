@@ -12,6 +12,7 @@ type Config struct {
 	PollInterval   time.Duration `env:"POLL_INTERVAL"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
 	URL            string        `env:"ADDRESS"`
+	Key            string        `env:"KEY"`
 }
 
 func (c *Config) String() string {
@@ -26,6 +27,7 @@ func InitConfig() (*Config, error) {
 	flag.StringVar(&cfg.URL, "a", "http://127.0.0.1:8080", "endpoint where metric send")
 	flag.DurationVar(&cfg.PollInterval, "p", 2*time.Second, "in what time metric collect in host")
 	flag.DurationVar(&cfg.ReportInterval, "r", 10*time.Second, "in what time metric push to server")
+	flag.StringVar(&cfg.Key, "k", "", "private key for hashing sha256")
 
 	flag.Parse()
 
@@ -43,6 +45,9 @@ func InitConfig() (*Config, error) {
 	}
 	if _, isPresent := os.LookupEnv("REPORT_INTERVAL"); isPresent {
 		cfg.ReportInterval = cfgEnv.ReportInterval
+	}
+	if _, isPresent := os.LookupEnv("KEY"); isPresent {
+		cfg.Key = cfgEnv.Key
 	}
 	return &cfg, nil
 }

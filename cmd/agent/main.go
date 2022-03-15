@@ -33,7 +33,7 @@ func main() {
 	defer reportTicker.Stop()
 
 	rand.Seed(time.Now().UnixNano())
-	mc := collector.NewMetricCollector(cfg.URL)
+	mc := collector.NewMetricCollector(cfg)
 	for {
 		select {
 		case <-sigChan:

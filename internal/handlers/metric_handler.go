@@ -5,7 +5,9 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/repositories"
+	"github.com/foximilUno/metrics/internal/secure"
 	"github.com/foximilUno/metrics/internal/types"
 	"io/ioutil"
 	"log"
@@ -41,9 +43,8 @@ func SendError(httpStatusCode int, w http.ResponseWriter, stringVal string) {
 	}
 }
 
-func ReadNewMetricByJSON(r *http.Request) (*types.Metrics, error) {
+func readNewMetricByJSON(r *http.Request) (*types.Metrics, error) {
 	bodyBytes, err := ioutil.ReadAll(r.Body)
-	fmt.Println("ReadNewMetricByJSON", string(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("can't read request body: %e", err)
 	}
@@ -57,7 +58,7 @@ func ReadNewMetricByJSON(r *http.Request) (*types.Metrics, error) {
 	return metric, nil
 }
 
-func ReadNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
+func readNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
 	metric := &types.Metrics{}
 
 	if len(pathArray[2]) == 0 {
@@ -85,11 +86,8 @@ func ReadNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
 	return metric, nil
 }
 
-func ReturnData(w http.ResponseWriter, r *http.Request, data []byte, contentType string) error {
+func returnData(w http.ResponseWriter, r *http.Request, data []byte, contentType string) error {
 	var err error
-	//DEBUG
-	fmt.Println("ReturnData", string(data))
-	fmt.Println(r.Header.Get("Accept-Encoding"))
 	w.Header().Set("Content-Type", contentType)
 	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 		var b bytes.Buffer
@@ -103,19 +101,17 @@ func ReturnData(w http.ResponseWriter, r *http.Request, data []byte, contentType
 		if err != nil {
 			return err
 		}
-		fmt.Println("compress", string(b.Bytes()))
 		//w.Header().Set("Content-Type", "application/base64")
 		w.Header().Set("Content-Encoding", "gzip")
 		_, err = w.Write(b.Bytes())
 	} else {
 
-		fmt.Println("withoit compress", string(data))
 		_, err = w.Write(data)
 	}
 	return err
 }
 
-func CommonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, error) {
+func commonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, error) {
 	switch metric.MType {
 	case "gauge":
 		if metric.Value == nil {
@@ -143,8 +139,8 @@ func CommonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, e
 	return 0, nil
 }
 
-// CommonGetMetric return string value of metric and save metric value/delta to parameter object
-func CommonGetMetric(metric *types.Metrics, s repositories.MetricSaver) (string, int, error) {
+// commonGetMetric return string value of metric and save metric value/delta to parameter object
+func commonGetMetric(metric *types.Metrics, s repositories.MetricSaver) (string, int, error) {
 	var result string
 	var err error
 	switch metric.MType {
@@ -178,6 +174,10 @@ func CommonGetMetric(metric *types.Metrics, s repositories.MetricSaver) (string,
 	return result, 0, nil
 }
 
+func isNeedEncryptOrDecrypt(cfg *config.MetricServerConfig) bool {
+	return len(cfg.Key) > 0
+}
+
 func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		//check elements in path
@@ -187,13 +187,13 @@ func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
 			return
 		}
-		metric, err := ReadNewMetricByTextPlain(segments)
+		metric, err := readNewMetricByTextPlain(segments)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if status, err := CommonSaveMetric(metric, s); err != nil {
+		if status, err := commonSaveMetric(metric, s); err != nil {
 			SendError(status, w, err.Error())
 			return
 		}
@@ -201,15 +201,27 @@ func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	}
 }
 
-func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
+func SaveMetricsViaJSON(s repositories.MetricSaver, cfg *config.MetricServerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metric, err := ReadNewMetricByJSON(r)
+		metric, err := readNewMetricByJSON(r)
 		if err != nil {
 			SendError(http.StatusBadRequest, w, err.Error())
 			return
 		}
 
-		if status, err := CommonSaveMetric(metric, s); err != nil {
+		if isNeedEncryptOrDecrypt(cfg) {
+			decryptedMetric, err := secure.DecryptMetric(metric.Hash, cfg.Key)
+			if err != nil {
+				SendError(http.StatusBadRequest, w, err.Error())
+				return
+			}
+			if !metric.Equal(decryptedMetric) {
+				SendError(http.StatusBadRequest, w, "hash is not equal handled metric")
+				return
+			}
+		}
+
+		if status, err := commonSaveMetric(metric, s); err != nil {
 			SendError(status, w, err.Error())
 		}
 		w.WriteHeader(200)
@@ -226,13 +238,13 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 			return
 		}
 
-		metric, err := ReadNewMetricByTextPlain(segments)
+		metric, err := readNewMetricByTextPlain(segments)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		strResult, httpStatus, err := CommonGetMetric(metric, s)
+		strResult, httpStatus, err := commonGetMetric(metric, s)
 		if err != nil {
 			SendError(httpStatus, w, err.Error())
 			return
@@ -246,18 +258,38 @@ func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	}
 }
 
-func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
+func GetMetricViaJSON(s repositories.MetricSaver, cfg *config.MetricServerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metric, err := ReadNewMetricByJSON(r)
+		metric, err := readNewMetricByJSON(r)
 		if err != nil {
 			SendError(http.StatusBadRequest, w, err.Error())
 			return
 		}
 
-		_, httpStatus, err := CommonGetMetric(metric, s)
+		_, httpStatus, err := commonGetMetric(metric, s)
 		if err != nil {
 			SendError(httpStatus, w, err.Error())
 			return
+		}
+
+		if isNeedEncryptOrDecrypt(cfg) {
+			var hash string
+			switch metric.MType {
+			case "gauge":
+				hash, err = secure.EncryptGaugeMetric(metric, cfg.Key)
+				if err != nil {
+					SendError(http.StatusInternalServerError, w, err.Error())
+					return
+				}
+				metric.Hash = hash
+			case "counter":
+				hash, err = secure.EncryptCounterMetric(metric, cfg.Key)
+				if err != nil {
+					SendError(http.StatusInternalServerError, w, err.Error())
+					return
+				}
+			}
+			metric.Hash = hash
 		}
 
 		bb, err := json.Marshal(metric)
@@ -265,7 +297,7 @@ func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
 			SendError(http.StatusInternalServerError, w, err.Error())
 			return
 		}
-		err = ReturnData(w, r, bb, "application/json")
+		err = returnData(w, r, bb, "application/json")
 		if err != nil {
 			SendError(http.StatusInternalServerError, w, "error while zipping")
 			return
@@ -286,7 +318,7 @@ func GetMetricsTable(s repositories.MetricSaver) http.HandlerFunc {
 			response = append(response, []byte(fmt.Sprintf(trPattern, "counter", v, v, n))...)
 		}
 		response = append(response, []byte(postHTML)...)
-		err := ReturnData(w, r, response, "text/html")
+		err := returnData(w, r, response, "text/html")
 		if err != nil {
 			SendError(http.StatusInternalServerError, w, "error while zipping")
 			return

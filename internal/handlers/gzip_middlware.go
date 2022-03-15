@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"compress/gzip"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -18,7 +17,6 @@ func GzipDecompressHandler(next http.Handler) http.Handler {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 			defer r.Body.Close()
-			fmt.Println("GzipDecompressHandler", string(bodyBytes))
 			gzR, err := gzip.NewReader(bytes.NewReader(bodyBytes))
 			gzR.Multistream(false)
 			if err != nil {
@@ -27,10 +25,10 @@ func GzipDecompressHandler(next http.Handler) http.Handler {
 			}
 			resultBytes, err := ioutil.ReadAll(gzR)
 			if err != nil {
-				fmt.Print("error at stage 2: " + err.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
 
-			fmt.Println("GzipDecompressHandler after decompress", string(resultBytes))
 			r.Body = ioutil.NopCloser(bytes.NewReader(resultBytes))
 		}
 		next.ServeHTTP(w, r)

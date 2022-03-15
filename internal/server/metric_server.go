@@ -20,13 +20,13 @@ func NewMetricServer(cfg *config.MetricServerConfig, storage repositories.Metric
 	r.Route("/", func(r chi.Router) {
 		r.Route("/update", func(r chi.Router) {
 			r.Post("/{metricType}/{metricName}/{metricVal}", handlers.SaveMetricsViaTextPlain(storage))
-			r.Post("/", handlers.SaveMetricsViaJSON(storage))
+			r.Post("/", handlers.SaveMetricsViaJSON(storage, cfg))
 
 		})
 
 		r.Route("/value", func(r chi.Router) {
 			r.Get("/{metricType}/{metricName}", handlers.GetMetricViaTextPlain(storage))
-			r.Post("/", handlers.GetMetricViaJSON(storage))
+			r.Post("/", handlers.GetMetricViaJSON(storage, cfg))
 		})
 	})
 

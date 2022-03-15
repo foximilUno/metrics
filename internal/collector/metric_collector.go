@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/foximilUno/metrics/internal/config"
+	"github.com/foximilUno/metrics/internal/secure"
 	"github.com/foximilUno/metrics/internal/types"
 	"log"
 	"math/rand"
@@ -28,21 +30,23 @@ type collector struct {
 	baseURL string
 	data    map[string]*MetricEntity
 	client  *http.Client
+	cfg     *config.Config
 }
 
-func NewMetricCollector(URL string) *collector {
+func NewMetricCollector(cfg *config.Config) *collector {
 	var baseURL string
 	//contains http/https
-	if strings.Contains(URL, "http") {
-		baseURL = URL
+	if strings.Contains(cfg.URL, "http") {
+		baseURL = cfg.URL
 	} else {
-		baseURL = "http://" + URL
+		baseURL = "http://" + cfg.URL
 	}
 
 	return &collector{
 		baseURL,
 		make(map[string]*MetricEntity),
 		&http.Client{},
+		cfg,
 	}
 }
 
@@ -117,12 +121,28 @@ func (mc *collector) Report() {
 		case gauge:
 			newVal := float64(v.entityValue)
 			m.Value = &newVal
+			if len(mc.cfg.Key) > 0 {
+				encryptVal, err := secure.EncryptGaugeMetric(&m, mc.cfg.Key)
+				if err != nil {
+					log.Fatalf("cant encrypt from val=%f: %e", newVal, err)
+				}
+				m.Hash = encryptVal
+			}
 		case counter:
 			newVal := int64(v.entityValue)
 			m.Delta = &newVal
+			if len(mc.cfg.Key) > 0 {
+				encryptVal, err := secure.EncryptCounterMetric(&m, mc.cfg.Key)
+				if err != nil {
+					log.Fatalf("cant encrypt from val=%d: %e", newVal, err)
+				}
+				m.Hash = encryptVal
+			}
+
 		default:
 			panic(fmt.Sprintf("unsupported for report type of metric: %s", v.entityType))
 		}
+
 		b, err := json.Marshal(m)
 		if err != nil {
 			//TODO what to do)) just logging right now

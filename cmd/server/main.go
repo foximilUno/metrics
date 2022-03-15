@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/server"
@@ -20,9 +19,7 @@ func main() {
 		log.Fatalf("cant start server :%e", err)
 	}
 
-	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
-		return
-	}
+	log.Println(cfg)
 
 	storage := st.NewMapStorage()
 
