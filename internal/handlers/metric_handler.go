@@ -209,12 +209,12 @@ func SaveMetricsViaJSON(s repositories.MetricSaver, cfg *config.MetricServerConf
 		}
 
 		if isNeedEncryptOrDecrypt(cfg) {
-			decryptedMetric, err := secure.DecryptMetric(metric.Hash, cfg.Key)
+			decryptedMetric, err := secure.IsValidHash(metric.Hash, cfg.Key)
 			if err != nil {
 				SendError(http.StatusBadRequest, w, err.Error())
 				return
 			}
-			if !metric.Equal(decryptedMetric) {
+			if !decryptedMetric {
 				SendError(http.StatusBadRequest, w, "hash is not equal handled metric")
 				return
 			}

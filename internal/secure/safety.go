@@ -3,23 +3,22 @@ package secure
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"github.com/foximilUno/metrics/internal/types"
-	"strconv"
-	"strings"
 )
 
 func getAesGSMWithNonce(keyString string) (cipher.AEAD, []byte, error) {
 	key32 := sha256.Sum256([]byte(keyString))
-	key := key32[:16]
+	key := key32[:]
 
 	aesBlock, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, nil, err
 	}
-	aesGcm, err := cipher.NewGCM(aesBlock)
+	aesGcm, err := cipher.NewGCMWithTagSize(aesBlock, 16)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -28,12 +27,13 @@ func getAesGSMWithNonce(keyString string) (cipher.AEAD, []byte, error) {
 }
 
 func encryptMetric(stringToEncrypt string, keyString string) (string, error) {
-	aesGcm, nonce, err := getAesGSMWithNonce(keyString)
-	if err != nil {
-		return "", err
-	}
+	key32 := sha256.Sum256([]byte(keyString))
+	key := key32[:]
 
-	return hex.EncodeToString(aesGcm.Seal(nil, nonce, []byte(stringToEncrypt), nil)), nil
+	h := hmac.New(sha256.New, key)
+	h.Write([]byte(stringToEncrypt))
+	hash := h.Sum(nil)
+	return hex.EncodeToString(hash), nil
 }
 
 func EncryptGaugeMetric(m *types.Metrics, key string) (string, error) {
@@ -46,42 +46,14 @@ func EncryptCounterMetric(m *types.Metrics, key string) (string, error) {
 	return encryptMetric(fmt.Sprintf("%s:counter:%d", m.ID, newVal), key)
 }
 
-func DecryptMetric(stringToDecrypt string, keyString string) (*types.Metrics, error) {
-	aesGcm, nonce, err := getAesGSMWithNonce(keyString)
+func IsValidHash(hashString string, keyString string) (bool, error) {
+	sig, err := hex.DecodeString(hashString)
 	if err != nil {
-		return nil, err
-	}
-	encrypted, err := hex.DecodeString(stringToDecrypt)
-	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	decrypted, err := aesGcm.Open(nil, nonce, encrypted, nil)
-	if err != nil {
-		return nil, err
-	}
-	decryptedString := string(decrypted)
-	values := strings.Split(decryptedString, ":")
-	newMetric := &types.Metrics{
-		ID:    values[0],
-		MType: values[1],
-	}
-	switch newMetric.MType {
-	case "gauge":
-		newVar, err := strconv.ParseFloat(values[2], 64)
-		if err != nil {
-			return nil, err
-		}
-		newMetric.Value = &newVar
-	case "counter":
-		newVar, err := strconv.ParseInt(values[2], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		newMetric.Delta = &newVar
-	default:
-		return nil, fmt.Errorf("need detail new type=%s", newMetric.MType)
-	}
+	mac := hmac.New(sha256.New, []byte(keyString))
+	mac.Write([]byte(hashString))
 
-	return newMetric, nil
+	return hmac.Equal(sig, mac.Sum(nil)), nil
 }
