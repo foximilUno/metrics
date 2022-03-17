@@ -27,10 +27,7 @@ func getAesGSMWithNonce(keyString string) (cipher.AEAD, []byte, error) {
 }
 
 func encryptMetric(stringToEncrypt string, keyString string) (string, error) {
-	key32 := sha256.Sum256([]byte(keyString))
-	key := key32[:]
-
-	h := hmac.New(sha256.New, key)
+	h := hmac.New(sha256.New, []byte(keyString))
 	h.Write([]byte(stringToEncrypt))
 	hash := h.Sum(nil)
 	return hex.EncodeToString(hash), nil
