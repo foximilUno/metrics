@@ -122,7 +122,7 @@ func (mc *collector) Report() {
 			newVal := float64(v.entityValue)
 			m.Value = &newVal
 			if len(mc.cfg.Key) > 0 {
-				encryptVal, err := secure.EncryptGaugeMetric(&m, mc.cfg.Key)
+				encryptVal, err := secure.EncryptMetric(&m, mc.cfg.Key)
 				if err != nil {
 					log.Fatalf("cant encrypt from val=%f: %e", newVal, err)
 				}
@@ -132,7 +132,7 @@ func (mc *collector) Report() {
 			newVal := int64(v.entityValue)
 			m.Delta = &newVal
 			if len(mc.cfg.Key) > 0 {
-				encryptVal, err := secure.EncryptCounterMetric(&m, mc.cfg.Key)
+				encryptVal, err := secure.EncryptMetric(&m, mc.cfg.Key)
 				if err != nil {
 					log.Fatalf("cant encrypt from val=%d: %e", newVal, err)
 				}

@@ -37,12 +37,12 @@ func TestEncryptGaugeMetric(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := EncryptGaugeMetric(tt.args.m, tt.args.key)
+			got, err := EncryptMetric(tt.args.m, tt.args.key)
 			if err != nil {
-				t.Errorf("EncryptGaugeMetric() : %e", err)
+				t.Errorf("EncryptMetric() : %e", err)
 			}
 			if got != tt.want {
-				t.Errorf("EncryptGaugeMetric()  \n\t\tgot = %v, \n\t\twant %v", got, tt.want)
+				t.Errorf("EncryptMetric()  \n\t\tgot = %v, \n\t\twant %v", got, tt.want)
 			}
 		})
 	}
@@ -51,10 +51,10 @@ func TestEncryptGaugeMetric(t *testing.T) {
 func TestDecryptMetric(t *testing.T) {
 	msg := "blablablablablablablablablablablablablablablablablabla"
 	key := "/tmp/SuIBy"
-	h, err := encryptMetric(msg, key)
+	h, err := encryptString(msg, key)
 	assert.NoError(t, err)
 
-	isEqual, err := IsValidHash(h, key)
+	isEqual, err := IsValidHash(msg, h, key)
 	assert.NoError(t, err)
 	assert.Truef(t, isEqual, "isEqual не равен true")
 }

@@ -209,12 +209,12 @@ func SaveMetricsViaJSON(s repositories.MetricSaver, cfg *config.MetricServerConf
 		}
 
 		if isNeedEncryptOrDecrypt(cfg) {
-			decryptedMetric, err := secure.IsValidHash(metric.Hash, cfg.Key)
+			isValid, err := secure.IsValidHash(metric.Format(), metric.Hash, cfg.Key)
 			if err != nil {
 				SendError(http.StatusBadRequest, w, err.Error())
 				return
 			}
-			if !decryptedMetric {
+			if !isValid {
 				SendError(http.StatusBadRequest, w, "hash is not equal handled metric")
 				return
 			}
@@ -272,21 +272,10 @@ func GetMetricViaJSON(s repositories.MetricSaver, cfg *config.MetricServerConfig
 		}
 
 		if isNeedEncryptOrDecrypt(cfg) {
-			var hash string
-			switch metric.MType {
-			case "gauge":
-				hash, err = secure.EncryptGaugeMetric(metric, cfg.Key)
-				if err != nil {
-					SendError(http.StatusInternalServerError, w, err.Error())
-					return
-				}
-				metric.Hash = hash
-			case "counter":
-				hash, err = secure.EncryptCounterMetric(metric, cfg.Key)
-				if err != nil {
-					SendError(http.StatusInternalServerError, w, err.Error())
-					return
-				}
+			hash, err := secure.EncryptMetric(metric, cfg.Key)
+			if err != nil {
+				SendError(http.StatusInternalServerError, w, err.Error())
+				return
 			}
 			metric.Hash = hash
 		}

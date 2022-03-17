@@ -1,6 +1,9 @@
 package types
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
@@ -36,4 +39,18 @@ func (m *Metrics) Equal(otherMetric *Metrics) bool {
 	return m.ID == otherMetric.ID &&
 		m.MType == otherMetric.MType &&
 		compers
+}
+
+//TODO тут конечно плохо и должен быть какой то еще вариант по дефолту или error
+func (m *Metrics) Format() string {
+	var formatStr string
+	switch m.MType {
+	case "gauge":
+		newVal := *m.Value
+		formatStr = fmt.Sprintf("%s:gauge:%f", m.ID, newVal)
+	case "counter":
+		newVal := *m.Delta
+		formatStr = fmt.Sprintf("%s:counter:%d", m.ID, newVal)
+	}
+	return formatStr
 }
