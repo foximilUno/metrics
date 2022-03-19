@@ -1,8 +1,8 @@
 package repositories
 
 type MetricSaver interface {
-	LoadFromFile(filename string) error
-	SaveToFile(filename string) error
+	Load(filename string) error
+	Dump(filename string) error
 	SaveGauge(name string, val float64)
 	SaveCounter(name string, val int64) error
 	GetGaugeMetricAsString(name string) (string, error)

@@ -14,6 +14,7 @@ type MetricServerConfig struct {
 	StoreFile     string        `json:"storeFile" env:"STORE_FILE"`
 	Restore       bool          `json:"isRestored" env:"RESTORE"`
 	Key           string        `env:"KEY"`
+	DatabaseDsn   string        `env:"DATABASE_DSN"`
 }
 
 func (c *MetricServerConfig) String() string {
@@ -32,6 +33,7 @@ func InitMetricServerConfig() (*MetricServerConfig, error) {
 	flag.StringVar(&cfg.StoreFile, "f", "/tmp/devops-metrics-db.json", "path to file to load/save metrics")
 	flag.DurationVar(&cfg.StoreInterval, "i", 300*time.Second, "with interval save to file")
 	flag.StringVar(&cfg.Key, "k", "", "private key to check data incoming")
+	flag.StringVar(&cfg.DatabaseDsn, "d", "", "database connection string")
 
 	flag.Parse()
 
@@ -55,6 +57,9 @@ func InitMetricServerConfig() (*MetricServerConfig, error) {
 	}
 	if _, isPresent := os.LookupEnv("KEY"); isPresent {
 		cfg.Key = cfgEnv.Key
+	}
+	if _, isPresent := os.LookupEnv("DATABASE_DSN"); isPresent {
+		cfg.DatabaseDsn = cfgEnv.DatabaseDsn
 	}
 
 	return &cfg, nil

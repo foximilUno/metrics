@@ -23,14 +23,13 @@ func main() {
 	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
 		log.Fatal("encoder err")
 	}
-	//log.Println(cfg)
 
 	storage := st.NewMapStorage()
 
 	if len(cfg.StoreFile) != 0 {
 		if cfg.Restore {
 			log.Printf("Restore from file %s\r", cfg.StoreFile)
-			err := storage.LoadFromFile(cfg.StoreFile)
+			err := storage.Load(cfg.StoreFile)
 
 			if err != nil {
 				log.Printf("cant load from file %s: %e\n", cfg.StoreFile, err)
@@ -39,21 +38,10 @@ func main() {
 
 		saveTicker := time.NewTicker(cfg.StoreInterval)
 
-		go func(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
-			for {
-				select {
-				case <-ticker.C:
-					if err := storage.SaveToFile(filepath); err != nil {
-						log.Printf("cant save to file\"%s\", err:%e", filepath, err)
-					}
-				default:
-					time.Sleep(1 * time.Second)
-				}
-			}
-		}(saveTicker, storage, cfg.StoreFile)
+		go runTicker(saveTicker, storage, cfg.StoreFile)
 
 	} else {
-		log.Println("function \"Save to file\" is turned off")
+		log.Println("function \"Dump to file\" is turned off")
 	}
 
 	metricServer, err := server.NewMetricServer(cfg, storage)
@@ -71,8 +59,21 @@ func main() {
 
 	<-sigChan
 	log.Println("save on exit")
-	if err := storage.SaveToFile(cfg.StoreFile); err != nil {
+	if err := storage.Dump(cfg.StoreFile); err != nil {
 		log.Println(err)
 		return
+	}
+}
+
+func runTicker(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
+	for {
+		select {
+		case <-ticker.C:
+			if err := storage.Dump(filepath); err != nil {
+				log.Printf("cant save to file\"%s\", err:%e", filepath, err)
+			}
+		default:
+			time.Sleep(1 * time.Second)
+		}
 	}
 }

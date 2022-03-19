@@ -26,7 +26,7 @@ func NewMapStorage() repositories.MetricSaver {
 		counters: make(map[string]int64)}
 }
 
-func (srm *MapStorage) LoadFromFile(filename string) error {
+func (srm *MapStorage) Load(filename string) error {
 
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
@@ -68,7 +68,7 @@ func (srm *MapStorage) LoadFromFile(filename string) error {
 	return nil
 }
 
-func (srm *MapStorage) SaveToFile(filename string) error {
+func (srm *MapStorage) Dump(filename string) error {
 	log.Println("save to", filename)
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	defer func(file *os.File) {
