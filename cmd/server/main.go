@@ -24,21 +24,24 @@ func main() {
 		log.Fatal("encoder err")
 	}
 
-	storage := st.NewMapStorage()
+	storage, err := st.NewMapStorage(cfg.DatabaseDsn)
+	if err != nil {
+		log.Fatalf("cant init storage: %e", err)
+	}
 
-	if len(cfg.StoreFile) != 0 {
+	if len(cfg.DatabaseDsn) != 0 {
 		if cfg.Restore {
-			log.Printf("Restore from file %s\r", cfg.StoreFile)
-			err := storage.Load(cfg.StoreFile)
+			log.Printf("Restore from %s\r", cfg.DatabaseDsn)
+			err := storage.Load()
 
 			if err != nil {
-				log.Printf("cant load from file %s: %e\n", cfg.StoreFile, err)
+				log.Printf("cant load from  %s: %e\n", cfg.DatabaseDsn, err)
 			}
 		}
 
 		saveTicker := time.NewTicker(cfg.StoreInterval)
 
-		go runTicker(saveTicker, storage, cfg.StoreFile)
+		go runTicker(saveTicker, storage)
 
 	} else {
 		log.Println("function \"Dump to file\" is turned off")
@@ -59,18 +62,18 @@ func main() {
 
 	<-sigChan
 	log.Println("save on exit")
-	if err := storage.Dump(cfg.StoreFile); err != nil {
+	if err := storage.Dump(); err != nil {
 		log.Println(err)
 		return
 	}
 }
 
-func runTicker(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
+func runTicker(ticker *time.Ticker, storage repositories.MetricSaver) {
 	for {
 		select {
 		case <-ticker.C:
-			if err := storage.Dump(filepath); err != nil {
-				log.Printf("cant save to file\"%s\", err:%e", filepath, err)
+			if err := storage.Dump(); err != nil {
+				log.Printf("cant save : err:%e", err)
 			}
 		default:
 			time.Sleep(1 * time.Second)

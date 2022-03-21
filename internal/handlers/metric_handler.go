@@ -112,17 +112,9 @@ func returnData(w http.ResponseWriter, r *http.Request, data []byte, contentType
 
 func commonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, error) {
 	switch metric.MType {
-	case "gauge":
-		if metric.Value == nil {
-			return http.StatusBadRequest, fmt.Errorf("value cant be empty")
-		}
-		s.SaveGauge(metric.ID, *metric.Value)
-	case "counter":
-		if metric.Delta == nil {
-			return http.StatusBadRequest, fmt.Errorf("delta cant be empty")
-		}
-		if err := s.SaveCounter(metric.ID, *metric.Delta); err != nil {
-			return http.StatusNotImplemented, err
+	case "gauge", "counter":
+		if err := s.SaveMetric(metric); err != nil {
+			return http.StatusInternalServerError, err
 		}
 	default:
 		return http.StatusNotImplemented,
@@ -297,11 +289,11 @@ func GetMetricsTable(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var response []byte
 		response = append(response, []byte(preHTML)...)
-		for _, v := range s.GetGaugeMetricNames() {
+		for _, v := range s.GetMetricNamesByTypes("gauge") {
 			n, _ := s.GetGaugeMetricAsString(v)
 			response = append(response, []byte(fmt.Sprintf(trPattern, "gauge", v, v, n))...)
 		}
-		for _, v := range s.GetCounterMetricNames() {
+		for _, v := range s.GetMetricNamesByTypes("counter") {
 			n, _ := s.GetCounterMetricAsString(v)
 			response = append(response, []byte(fmt.Sprintf(trPattern, "counter", v, v, n))...)
 		}

@@ -11,18 +11,10 @@ import (
 type MetricServerConfig struct {
 	Host          string        `json:"host" env:"ADDRESS"`
 	StoreInterval time.Duration `json:"storeInterval" env:"STORE_INTERVAL"`
-	StoreFile     string        `json:"storeFile" env:"STORE_FILE"`
-	Restore       bool          `json:"isRestored" env:"RESTORE"`
-	Key           string        `env:"KEY"`
-	DatabaseDsn   string        `env:"DATABASE_DSN"`
-}
-
-func (c *MetricServerConfig) String() string {
-	return fmt.Sprintf("Config: Host: %s, StoreInterval: %d, StoreFile: \"%s\", Restore: \"%t\"",
-		c.Host,
-		c.StoreInterval,
-		c.StoreFile,
-		c.Restore)
+	//StoreFile     string        `json:"storeFile" env:"STORE_FILE"`
+	Restore     bool   `json:"isRestored" env:"RESTORE"`
+	Key         string `env:"KEY"`
+	DatabaseDsn string `env:"DATABASE_DSN"`
 }
 
 func InitMetricServerConfig() (*MetricServerConfig, error) {
@@ -30,7 +22,7 @@ func InitMetricServerConfig() (*MetricServerConfig, error) {
 
 	flag.StringVar(&cfg.Host, "a", "localhost:8080", "server url as <host:port>")
 	flag.BoolVar(&cfg.Restore, "r", true, "is restored from file - <true/false>")
-	flag.StringVar(&cfg.StoreFile, "f", "/tmp/devops-metrics-db.json", "path to file to load/save metrics")
+	//flag.StringVar(&cfg.StoreFile, "f", "/tmp/devops-metrics-db.json", "path to file to load/save metrics")
 	flag.DurationVar(&cfg.StoreInterval, "i", 300*time.Second, "with interval save to file")
 	flag.StringVar(&cfg.Key, "k", "", "private key to check data incoming")
 	flag.StringVar(&cfg.DatabaseDsn, "d", "", "database connection string")
@@ -45,9 +37,6 @@ func InitMetricServerConfig() (*MetricServerConfig, error) {
 
 	if len(cfgEnv.Host) != 0 {
 		cfg.Host = cfgEnv.Host
-	}
-	if len(cfgEnv.StoreFile) != 0 {
-		cfg.StoreFile = cfgEnv.StoreFile
 	}
 	if len(os.Getenv("RESTORE")) != 0 {
 		cfg.Restore = cfgEnv.Restore

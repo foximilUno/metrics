@@ -1,164 +1,163 @@
 package storage
 
 import (
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/types"
-	"io"
+	_ "github.com/jackc/pgx/stdlib"
 	"log"
 	"math"
-	"os"
+)
+
+const (
+	createTableQuery = `create table if not exists metrics(
+	"id" int generated always as identity,
+	"name" varchar(255),
+	"type" varchar(50),
+	"value" double precision,
+	"delta" int
+);`
+
+	emptyMetricTable = `delete from metrics;`
+
+	insertMetric = `insert into metrics("name", "type", "value", "delta") values($1,$2,$3,$4);`
+
+	getMetrics = `select "name", "type", value, delta from metrics;`
 )
 
 type MapStorage struct {
-	gauges   map[string]float64
-	counters map[string]int64
+	metrics map[string]*types.Metrics
+	DB      *sql.DB
 }
 
 type Dump struct {
 	DumpedMetrics []types.Metrics `json:"dumpedMetrics"`
 }
 
-func NewMapStorage() repositories.MetricSaver {
+func NewMapStorage(dbURL string) (repositories.MetricSaver, error) {
+
+	dbConn, err := sql.Open("pgx", dbURL)
+	if err != nil {
+		return nil, err
+	}
+	_, err = dbConn.Exec(createTableQuery)
+	if err != nil {
+		return nil, err
+	}
+
 	return &MapStorage{
-		gauges:   make(map[string]float64),
-		counters: make(map[string]int64)}
+		DB:      dbConn,
+		metrics: make(map[string]*types.Metrics),
+	}, nil
 }
 
-func (srm *MapStorage) Load(filename string) error {
+func (srm *MapStorage) Load() error {
 
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	rows, err := srm.DB.Query(getMetrics)
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
 	if err != nil {
 		return err
 	}
 
-	defer func(file *os.File) {
-		err := file.Close()
+	var m types.Metrics
+	var val float64
+	var delt int64
+
+	for rows.Next() {
+		err = rows.Scan(&m.ID, &m.MType, &val, &delt)
 		if err != nil {
-			log.Println(err)
+			return err
 		}
-	}(file)
-
-	decoder := json.NewDecoder(file)
-
-	var dump *Dump
-
-	if err := decoder.Decode(&dump); err == io.EOF {
-		return nil
-	} else if err != nil {
-		log.Fatal("fatal", err)
+		srm.metrics[m.ID] = &m
+	}
+	err = rows.Err()
+	if err != nil {
+		return err
 	}
 
-	log.Printf("loaded %d metrics\n", len(dump.DumpedMetrics))
-
-	for _, v := range dump.DumpedMetrics {
-		switch v.MType {
-		case "gauge":
-			srm.SaveGauge(v.ID, *v.Value)
-		case "counter":
-			err := srm.SaveCounter(v.ID, *v.Delta)
-			if err != nil {
-				return err
-			}
-		default:
-			log.Fatalf("not supported type of metric")
-		}
-	}
+	log.Printf("loaded %d metrics\n", len(srm.metrics))
 	return nil
 }
 
-func (srm *MapStorage) Dump(filename string) error {
-	log.Println("save to", filename)
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
-	defer func(file *os.File) {
-		err := file.Close()
+func (srm *MapStorage) Dump() error {
+	log.Println("save to DB")
+
+	_, err := srm.DB.Exec(emptyMetricTable)
+	if err != nil {
+		return err
+	}
+	for _, v := range srm.metrics {
+		_, err = srm.DB.Exec(insertMetric, v.ID, v.MType, &v.Value, &v.Delta)
 		if err != nil {
-			log.Println(err)
+			return err
 		}
-	}(file)
-	if err != nil {
-		return err
 	}
 
-	metricsArray := &Dump{
-		[]types.Metrics{},
-	}
-
-	for k, v := range srm.gauges {
-
-		tempV := v
-		metricsArray.DumpedMetrics = append(metricsArray.DumpedMetrics, types.Metrics{
-			ID:    k,
-			MType: "gauge",
-			Value: &tempV,
-		})
-	}
-
-	for k, v := range srm.counters {
-		tempV := v
-		metricsArray.DumpedMetrics = append(metricsArray.DumpedMetrics, types.Metrics{
-			ID:    k,
-			MType: "counter",
-			Delta: &tempV,
-		})
-	}
-
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(metricsArray)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-func (srm *MapStorage) SaveGauge(name string, val float64) {
-	srm.gauges[name] = val
-}
+func (srm *MapStorage) SaveMetric(metric *types.Metrics) error {
+	if metric.MType == "counter" {
+		if _, ok := srm.metrics[metric.ID]; !ok {
+			srm.metrics[metric.ID] = metric
+			return nil
+		}
+		curDelta := srm.metrics[metric.ID].Delta
 
-func (srm *MapStorage) SaveCounter(name string, val int64) error {
-	if _, ok := srm.counters[name]; !ok {
-		srm.counters[name] = 0
+		after, err := sumWithCheck(*curDelta, *metric.Delta)
+		if err != nil {
+			return fmt.Errorf("cant increase counter with name %s: %e", metric.ID, err)
+
+		}
+		log.Printf(
+			"successfully increase counter %s: before: %d, val:%d, after:%d \r\n",
+			metric.ID,
+			*curDelta,
+			*metric.Delta,
+			after)
+		metric.Delta = &after
+		srm.metrics[metric.ID] = metric
+
+	} else {
+		srm.metrics[metric.ID] = metric
 	}
-
-	after, err := sumWithCheck(srm.counters[name], val)
-	if err != nil {
-		return fmt.Errorf("cant increase counter with name %s: %e", name, err)
-
-	}
-	log.Printf("successfully increase counter %s: before: %d, val:%d, after:%d \r\n", name, srm.counters[name], val, after)
-	srm.counters[name] = after
 	return nil
 }
 
 func (srm *MapStorage) GetGaugeMetricAsString(name string) (string, error) {
-	if val, ok := srm.gauges[name]; !ok {
+	if m, ok := srm.metrics[name]; !ok {
 		return "", fmt.Errorf("cant find such metric with type gauge")
 	} else {
-		return fmt.Sprint(val), nil
+		if m.Value == nil {
+			return "", nil
+		}
+		return fmt.Sprint(*m.Value), nil
 	}
 }
 
 func (srm *MapStorage) GetCounterMetricAsString(name string) (string, error) {
-	if val, ok := srm.counters[name]; !ok {
+	if m, ok := srm.metrics[name]; !ok {
 		return "", fmt.Errorf("cant find such metric with type counter")
 	} else {
-		return fmt.Sprint(val), nil
+		if m.Delta == nil {
+			return "", nil
+		}
+		return fmt.Sprint(*m.Delta), nil
 	}
 }
 
-func (srm *MapStorage) GetGaugeMetricNames() []string {
-	keys := make([]string, 0, len(srm.gauges))
-	for k := range srm.gauges {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-func (srm *MapStorage) GetCounterMetricNames() []string {
-	keys := make([]string, 0, len(srm.counters))
-	for k := range srm.counters {
-		keys = append(keys, k)
+func (srm *MapStorage) GetMetricNamesByTypes(metricType string) []string {
+	keys := make([]string, 0, len(srm.metrics))
+	for _, v := range srm.metrics {
+		if v.MType == metricType {
+			keys = append(keys, v.ID)
+		}
 	}
 	return keys
 }
