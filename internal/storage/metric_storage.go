@@ -71,11 +71,10 @@ func (srm *MapStorage) Load() error {
 		return err
 	}
 
-	var m types.Metrics
-	var val sql.NullFloat64
-	var delt sql.NullInt64
-
 	for rows.Next() {
+		m := &types.Metrics{}
+		var val sql.NullFloat64
+		var delt sql.NullInt64
 		err = rows.Scan(&m.ID, &m.MType, &val, &delt)
 		if err != nil {
 			return err
@@ -87,7 +86,7 @@ func (srm *MapStorage) Load() error {
 			m.Delta = &delt.Int64
 		}
 
-		srm.metrics[m.ID] = &m
+		srm.metrics[m.ID] = m
 	}
 	err = rows.Err()
 	if err != nil {

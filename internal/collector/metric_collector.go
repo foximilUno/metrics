@@ -116,7 +116,7 @@ func (mc *collector) Report() {
 			ID:    v.entityName,
 			MType: v.entityType,
 		}
-
+		fmt.Printf("DEBUG\r\n: %v\r\n", v)
 		switch v.entityType {
 		case gauge:
 			newVal := float64(v.entityValue)
