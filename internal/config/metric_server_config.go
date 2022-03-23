@@ -33,11 +33,7 @@ func InitMetricServerConfig() (*MetricServerConfig, error) {
 		return nil, fmt.Errorf("cant load metricServer envs: %e", err)
 	}
 
-	//DEBUG change flag.Parse() to inner invoke to catch error
-	//flag.Parse()
-	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
-		return nil, err
-	}
+	flag.Parse()
 
 	if len(cfgEnv.Host) != 0 {
 		cfg.Host = cfgEnv.Host
