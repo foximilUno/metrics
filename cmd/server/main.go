@@ -30,7 +30,9 @@ func main() {
 
 		err = st.WithPersist(cfg.DatabaseDsn)
 		if err != nil {
-			log.Fatalf("cant init st: %e", err)
+			//TODO
+			//log.Fatalf("cant init st: %e", err)
+			log.Printf("cant init st: %e\r\n", err)
 		}
 
 		if cfg.Restore {
