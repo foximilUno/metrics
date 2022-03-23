@@ -18,6 +18,10 @@ func main() {
 		log.Fatalf("cant start agent: %e", err)
 	}
 
+	//DEBUG
+	log.Printf("ARGS: %v", os.Args)
+	log.Printf("ENVS: %v", os.Environ())
+
 	log.Println("agent started")
 
 	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
