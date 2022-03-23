@@ -17,7 +17,7 @@ func main() {
 
 	cfg, err := config.InitMetricServerConfig()
 	if err != nil {
-		log.Fatalf("cant start server :%e", err)
+		log.Printf("cant start server :%e\r\n", err)
 	}
 
 	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
