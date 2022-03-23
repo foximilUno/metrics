@@ -16,7 +16,7 @@ const (
 	"name" varchar(255),
 	"type" varchar(50),
 	"value" double precision,
-	"delta" int
+	"delta" bigint
 );`
 
 	emptyMetricTable = `delete from metrics;`
