@@ -35,21 +35,27 @@ type Dump struct {
 	DumpedMetrics []types.Metrics `json:"dumpedMetrics"`
 }
 
-func NewMapStorage(dbURL string) (repositories.MetricSaver, error) {
+func NewMapStorage() repositories.MetricSaver {
 
+	return &MapStorage{
+		DB:      nil,
+		metrics: make(map[string]*types.Metrics),
+	}
+}
+
+func (srm *MapStorage) WithPersist(dbURL string) error {
 	dbConn, err := sql.Open("pgx", dbURL)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	_, err = dbConn.Exec(createTableQuery)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &MapStorage{
-		DB:      dbConn,
-		metrics: make(map[string]*types.Metrics),
-	}, nil
+	srm.DB = dbConn
+	return nil
+
 }
 
 func (srm *MapStorage) Load() error {
@@ -66,14 +72,21 @@ func (srm *MapStorage) Load() error {
 	}
 
 	var m types.Metrics
-	var val float64
-	var delt int64
+	var val sql.NullFloat64
+	var delt sql.NullInt64
 
 	for rows.Next() {
 		err = rows.Scan(&m.ID, &m.MType, &val, &delt)
 		if err != nil {
 			return err
 		}
+		if val.Valid {
+			m.Value = &val.Float64
+		}
+		if delt.Valid {
+			m.Delta = &delt.Int64
+		}
+
 		srm.metrics[m.ID] = &m
 	}
 	err = rows.Err()

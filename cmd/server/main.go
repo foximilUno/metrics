@@ -5,7 +5,7 @@ import (
 	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/server"
-	st "github.com/foximilUno/metrics/internal/storage"
+	"github.com/foximilUno/metrics/internal/storage"
 	"log"
 	"os"
 	"os/signal"
@@ -24,30 +24,36 @@ func main() {
 		log.Fatal("encoder err")
 	}
 
-	storage, err := st.NewMapStorage(cfg.DatabaseDsn)
-	if err != nil {
-		log.Fatalf("cant init storage: %e", err)
-	}
+	st := storage.NewMapStorage()
 
 	if len(cfg.DatabaseDsn) != 0 {
+
+		err = st.WithPersist(cfg.DatabaseDsn)
+		if err != nil {
+			log.Fatalf("cant init st: %e", err)
+		}
+
 		if cfg.Restore {
+
 			log.Printf("Restore from %s\r", cfg.DatabaseDsn)
-			err := storage.Load()
+			err = st.Load()
 
 			if err != nil {
 				log.Printf("cant load from  %s: %e\n", cfg.DatabaseDsn, err)
 			}
+		} else {
+			log.Println("Start server without restoring from persist")
 		}
 
 		saveTicker := time.NewTicker(cfg.StoreInterval)
 
-		go runTicker(saveTicker, storage)
+		go runTicker(saveTicker, st)
 
 	} else {
-		log.Println("function \"Dump to file\" is turned off")
+		log.Println("function \"Dump\" is turned off")
 	}
 
-	metricServer, err := server.NewMetricServer(cfg, storage)
+	metricServer, err := server.NewMetricServer(cfg, st)
 	if err != nil {
 		log.Fatalf("cant start metricServer: %e", err)
 	}
@@ -61,10 +67,12 @@ func main() {
 		syscall.SIGQUIT)
 
 	<-sigChan
-	log.Println("save on exit")
-	if err := storage.Dump(); err != nil {
-		log.Println(err)
-		return
+	if len(cfg.DatabaseDsn) != 0 {
+		log.Println("save on exit")
+		if err := st.Dump(); err != nil {
+			log.Println(err)
+			return
+		}
 	}
 }
 

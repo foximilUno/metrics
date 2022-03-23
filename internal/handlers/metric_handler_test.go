@@ -16,7 +16,7 @@ func TestSaveMetrics(t *testing.T) {
 		url         string
 	}
 	type want struct {
-		expectedStatucCode int
+		expectedStatusCode int
 		expectedBody       string
 	}
 	tests := []struct {
@@ -73,7 +73,7 @@ func TestSaveMetrics(t *testing.T) {
 			},
 		},
 		{
-			"test success conter",
+			"test success counter",
 			args{
 				http.MethodPost,
 				"text/plain",
@@ -97,7 +97,7 @@ func TestSaveMetrics(t *testing.T) {
 			body, err := ioutil.ReadAll(r.Body)
 			assert.NoError(t, err)
 			defer r.Body.Close()
-			assert.Equal(t, tt.want.expectedStatucCode, r.StatusCode)
+			assert.Equal(t, tt.want.expectedStatusCode, r.StatusCode)
 			assert.Equal(t, tt.want.expectedBody, string(body))
 		})
 	}

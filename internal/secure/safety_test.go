@@ -3,6 +3,7 @@ package secure
 import (
 	"github.com/foximilUno/metrics/internal/types"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -20,19 +21,16 @@ func TestEncryptGaugeMetric(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			"check hash",
-			args{
-				&types.Metrics{
-					"MSpanSys",
-					"gauge",
-					nil,
-					&f,
-					"",
+			name: "check hash",
+			args: args{
+				m: &types.Metrics{
+					ID:    "MSpanSys",
+					MType: "gauge",
+					Value: &f,
 				},
-				"/tmp/SuIBy",
+				key: "/tmp/SuIBy",
 			},
-			"5af4af330889cf92ca53b6af9894918f974472e2199151aba2eba3d022c75fef",
-			false,
+			want: "5af4af330889cf92ca53b6af9894918f974472e2199151aba2eba3d022c75fef",
 		},
 	}
 	for _, tt := range tests {
@@ -49,7 +47,7 @@ func TestEncryptGaugeMetric(t *testing.T) {
 }
 
 func TestDecryptMetric(t *testing.T) {
-	msg := "blablablablablablablablablablablablablablablablablabla"
+	msg := strings.Repeat("bla", 10)
 	key := "/tmp/SuIBy"
 	h, err := encryptString(msg, key)
 	assert.NoError(t, err)
