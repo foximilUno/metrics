@@ -27,12 +27,16 @@ func InitMetricServerConfig() (*MetricServerConfig, error) {
 	flag.StringVar(&cfg.Key, "k", "", "private key to check data incoming")
 	flag.StringVar(&cfg.DatabaseDsn, "d", "", "database connection string")
 
-	flag.Parse()
-
 	var cfgEnv MetricServerConfig
 
 	if err := env.Parse(&cfgEnv); err != nil {
 		return nil, fmt.Errorf("cant load metricServer envs: %e", err)
+	}
+
+	//DEBUG change flag.Parse() to inner invoke to catch error
+	//flag.Parse()
+	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
+		return nil, err
 	}
 
 	if len(cfgEnv.Host) != 0 {
