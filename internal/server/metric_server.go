@@ -48,6 +48,7 @@ func NewMetricServer(cfg *config.MetricServerConfig, storage repositories.Metric
 func (s *server) RunServer() {
 	log.Printf("server started at endpoint %s\n", s.Server.Addr)
 	if err := s.Server.ListenAndServe(); err != nil {
-		log.Fatal(err)
+		//TODO
+		log.Println(err)
 	}
 }

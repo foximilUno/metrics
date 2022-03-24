@@ -22,7 +22,8 @@ func main() {
 	}
 
 	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
-		log.Fatal("encoder err")
+		//log.Fatal("encoder err")
+		log.Println("encoder err")
 	}
 
 	st := storage.NewMapStorage()
@@ -58,7 +59,8 @@ func main() {
 
 	metricServer, err := server.NewMetricServer(cfg, st)
 	if err != nil {
-		log.Fatalf("cant start metricServer: %e", err)
+		//TODO
+		log.Printf("cant start metricServer: %e", err)
 	}
 
 	go metricServer.RunServer()
