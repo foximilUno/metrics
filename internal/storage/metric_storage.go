@@ -59,7 +59,12 @@ func (srm *MapStorage) WithPersist(dbURL string) error {
 }
 
 func (srm *MapStorage) Load() error {
-
+	// DEBUG
+	if srm.DB == nil {
+		fmt.Println("CANT LOAD FROM DEADLY CONNECTION")
+		return nil
+	}
+	//
 	rows, err := srm.DB.Query(getMetrics)
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
@@ -99,6 +104,13 @@ func (srm *MapStorage) Load() error {
 
 func (srm *MapStorage) Dump() error {
 	log.Println("save to DB")
+
+	// DEBUG
+	if srm.DB == nil {
+		fmt.Println("CANT Dump TO DEADLY CONNECTION")
+		return nil
+	}
+	//
 
 	_, err := srm.DB.Exec(emptyMetricTable)
 	if err != nil {
