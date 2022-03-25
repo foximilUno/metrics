@@ -26,23 +26,29 @@ func main() {
 
 	storage := st.NewMapStorage()
 
+	var persist repositories.Persist
 	if len(cfg.DatabaseDsn) != 0 {
-		persist, err := st.NewDbPersist(cfg.DatabaseDsn)
+		persist, err = st.NewDbPersist(cfg.DatabaseDsn)
 		if err != nil {
 			log.Fatalf("problem with create db persist: %e", err)
 		}
-		err = storage.WithPersist(persist)
-		if err != nil {
-			log.Fatalf("cant init storage: %e", err)
-		}
+	} else if len(cfg.StoreFile) != 0 {
+		persist = st.NewFilePersist(cfg.StoreFile)
+	}
+
+	if persist != nil {
+
+		storage.WithPersist(persist)
 
 		if cfg.Restore {
-			log.Printf("Restore from file %s\r", cfg.StoreFile)
+			log.Printf("Restore from %s\r", persist)
 			err := storage.Load()
 
 			if err != nil {
-				log.Printf("cant load from file %s: %e\n", cfg.StoreFile, err)
+				log.Printf("cant load metrics from persist: %e\n", err)
 			}
+		} else {
+			log.Println("Start server without restoring from persist")
 		}
 
 		saveTicker := time.NewTicker(cfg.StoreInterval)

@@ -23,9 +23,8 @@ func NewMapStorage() repositories.MetricSaver {
 	}
 }
 
-func (srm *MapStorage) WithPersist(persist repositories.Persist) error {
+func (srm *MapStorage) WithPersist(persist repositories.Persist) {
 	srm.persist = persist
-	return nil
 }
 
 func (srm *MapStorage) Load() error {
