@@ -28,6 +28,9 @@ func main() {
 
 	if len(cfg.DatabaseDsn) != 0 {
 		persist, err := st.NewDbPersist(cfg.DatabaseDsn)
+		if err != nil {
+			log.Fatalf("problem with create db persist: %e", err)
+		}
 		err = storage.WithPersist(persist)
 		if err != nil {
 			log.Fatalf("cant init storage: %e", err)
