@@ -27,7 +27,8 @@ func main() {
 	storage := st.NewMapStorage()
 
 	if len(cfg.DatabaseDsn) != 0 {
-		err = storage.WithPersist(st.NewFilePersist(cfg.StoreFile))
+		persist, err := st.NewDbPersist(cfg.DatabaseDsn)
+		err = storage.WithPersist(persist)
 		if err != nil {
 			log.Fatalf("cant init storage: %e", err)
 		}

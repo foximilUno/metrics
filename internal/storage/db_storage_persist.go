@@ -27,7 +27,7 @@ type dbStorage struct {
 	DB *sql.DB
 }
 
-func NewDbStorage(connectionString string) (*dbStorage, error) {
+func NewDbPersist(connectionString string) (*dbStorage, error) {
 	dbConnect, err := sql.Open("pgx", connectionString)
 	if err != nil {
 		return nil, err
