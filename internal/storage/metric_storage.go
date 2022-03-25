@@ -101,6 +101,10 @@ func (srm *MapStorage) GetMetricNamesByTypes(metricType string) []string {
 	return keys
 }
 
+func (srm *MapStorage) IsPersisted() bool {
+	return srm.persist != nil
+}
+
 func sumWithCheck(var1 int64, var2 int64) (int64, error) {
 	if math.MaxInt64-var1 >= var2 {
 		return var1 + var2, nil

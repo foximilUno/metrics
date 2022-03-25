@@ -26,7 +26,7 @@ func main() {
 
 	storage := st.NewMapStorage()
 
-	if len(cfg.StoreFile) != 0 {
+	if storage.IsPersisted() {
 		err = storage.WithPersist(st.NewFilePersist(cfg.StoreFile))
 		if err != nil {
 			log.Fatalf("cant init storage: %e", err)
@@ -64,7 +64,7 @@ func main() {
 
 	<-sigChan
 	log.Println("save on exit")
-	if len(cfg.StoreFile) != 0 {
+	if storage.IsPersisted() {
 		if err := storage.Dump(); err != nil {
 			log.Println(err)
 			return
