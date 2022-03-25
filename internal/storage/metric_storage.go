@@ -58,7 +58,8 @@ func (srm *MapStorage) Load() error {
 	log.Printf("loaded %d metrics\n", len(dump.DumpedMetrics))
 
 	for _, v := range dump.DumpedMetrics {
-		srm.metrics[v.ID] = &v
+		t := v
+		srm.metrics[v.ID] = &t
 	}
 	return nil
 }
