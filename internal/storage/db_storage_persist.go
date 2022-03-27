@@ -23,11 +23,11 @@ const (
 	getMetrics = `select "name", "type", value, delta from metrics;`
 )
 
-type dbStorage struct {
+type dbPersist struct {
 	DB *sql.DB
 }
 
-func NewDbPersist(connectionString string) (*dbStorage, error) {
+func NewDbPersist(connectionString string) (*dbPersist, error) {
 	dbConnect, err := sql.Open("pgx", connectionString)
 	if err != nil {
 		return nil, err
@@ -37,13 +37,13 @@ func NewDbPersist(connectionString string) (*dbStorage, error) {
 		return nil, err
 	}
 
-	return &dbStorage{
+	return &dbPersist{
 		DB: dbConnect,
 	}, nil
 
 }
 
-func (dbs *dbStorage) Load() (map[string]*types.Metrics, error) {
+func (dbs *dbPersist) Load() (map[string]*types.Metrics, error) {
 	metrics := make(map[string]*types.Metrics)
 	if dbs.DB == nil {
 		return nil, fmt.Errorf("connetion to db is nil")
@@ -85,7 +85,7 @@ func (dbs *dbStorage) Load() (map[string]*types.Metrics, error) {
 	return metrics, nil
 }
 
-func (dbs *dbStorage) Dump(metrics map[string]*types.Metrics) error {
+func (dbs *dbPersist) Dump(metrics map[string]*types.Metrics) error {
 	log.Println("save to DB")
 
 	if dbs.DB == nil {

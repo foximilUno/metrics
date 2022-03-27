@@ -5,12 +5,9 @@ import (
 )
 
 type MetricSaver interface {
-	Load() error
 	Dump() error
-	WithPersist(persist Persist)
 	SaveMetric(metric *types.Metrics) error
 	GetGaugeMetricAsString(name string) (string, error)
 	GetCounterMetricAsString(name string) (string, error)
 	GetMetricNamesByTypes(metricType string) []string
-	IsPersisted() bool
 }

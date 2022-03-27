@@ -2,42 +2,80 @@ package storage
 
 import (
 	"fmt"
+	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/types"
 	"log"
 	"math"
+	"time"
 )
-
-type MapStorage struct {
-	metrics map[string]*types.Metrics
-	persist repositories.Persist
-}
 
 type Dump struct {
 	DumpedMetrics []types.Metrics `json:"dumpedMetrics"`
 }
 
-func NewMapStorage() repositories.MetricSaver {
+type MapStorage struct {
+	metrics map[string]*types.Metrics
+	Persist repositories.Persist
+}
+
+func NewMapStorage() *MapStorage {
 	return &MapStorage{
 		metrics: make(map[string]*types.Metrics),
 	}
 }
 
-func (srm *MapStorage) WithPersist(persist repositories.Persist) {
-	srm.persist = persist
-}
-
-func (srm *MapStorage) Load() error {
-	a, err := srm.persist.Load()
-	if err != nil {
-		return err
+func (srm *MapStorage) Prepare(cfg *config.MetricServerConfig) error {
+	var persist repositories.Persist
+	var err error
+	if len(cfg.DatabaseDsn) != 0 {
+		persist, err = NewDbPersist(cfg.DatabaseDsn)
+		if err != nil {
+			return fmt.Errorf("problem with create db persist: %e", err)
+		}
+	} else if len(cfg.StoreFile) != 0 {
+		persist = NewFilePersist(cfg.StoreFile)
 	}
-	srm.metrics = a
+
+	if persist != nil {
+
+		srm.Persist = persist
+
+		if cfg.Restore {
+			log.Printf("Restore from %s\r", persist)
+
+			srm.metrics, err = persist.Load()
+
+			if err != nil {
+				return fmt.Errorf("cant load metrics from persist: %e\n", err)
+			}
+		} else {
+			log.Println("Start server without restoring from persist")
+		}
+
+		saveTicker := time.NewTicker(cfg.StoreInterval)
+
+		go func(ticker *time.Ticker) {
+			for {
+				select {
+				case <-ticker.C:
+					if err := srm.Persist.Dump(srm.metrics); err != nil {
+						log.Printf("cant save : err:%e", err)
+					}
+				default:
+					time.Sleep(1 * time.Second)
+				}
+			}
+		}(saveTicker)
+
+	} else {
+		log.Println("function \"Dump\" is turned off")
+	}
 	return nil
 }
 
 func (srm *MapStorage) Dump() error {
-	return srm.persist.Dump(srm.metrics)
+	return srm.Persist.Dump(srm.metrics)
 }
 
 func (srm *MapStorage) SaveMetric(metric *types.Metrics) error {
@@ -101,7 +139,7 @@ func (srm *MapStorage) GetMetricNamesByTypes(metricType string) []string {
 }
 
 func (srm *MapStorage) IsPersisted() bool {
-	return srm.persist != nil
+	return srm.Persist != nil
 }
 
 func sumWithCheck(var1 int64, var2 int64) (int64, error) {
