@@ -1,4 +1,4 @@
-package storage
+package file
 
 import (
 	"encoding/json"
@@ -9,6 +9,10 @@ import (
 	"log"
 	"os"
 )
+
+type Dump struct {
+	DumpedMetrics []types.Metrics `json:"dumpedMetrics"`
+}
 
 type filePersist struct {
 	filename string

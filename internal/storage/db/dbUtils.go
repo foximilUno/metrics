@@ -1,4 +1,4 @@
-package storage
+package db
 
 import (
 	"database/sql"
@@ -16,18 +16,16 @@ const (
 	"delta" bigint
 );`
 
-	emptyMetricTable = `delete from metrics;`
-
 	insertMetric = `insert into metrics("name", "type", "value", "delta") values($1,$2,$3,$4);`
 
 	getMetrics = `select "name", "type", value, delta from metrics;`
 )
 
-type dbPersist struct {
-	DB *sql.DB
+func InsertMetricToDB(db *sql.DB, metrics *types.Metrics) (sql.Result, error) {
+	return db.Exec(insertMetric, metrics.ID, metrics.MType, &metrics.Value, &metrics.Delta)
 }
 
-func NewDbPersist(connectionString string) (*dbPersist, error) {
+func GetDBConnectWithCreatedTable(connectionString string) (*sql.DB, error) {
 	dbConnect, err := sql.Open("pgx", connectionString)
 	if err != nil {
 		return nil, err
@@ -37,18 +35,15 @@ func NewDbPersist(connectionString string) (*dbPersist, error) {
 		return nil, err
 	}
 
-	return &dbPersist{
-		DB: dbConnect,
-	}, nil
-
+	return dbConnect, nil
 }
 
-func (dbs *dbPersist) Load() (map[string]*types.Metrics, error) {
+func GetAllMetricsFromDB(dbConn *sql.DB) (map[string]*types.Metrics, error) {
 	metrics := make(map[string]*types.Metrics)
-	if dbs.DB == nil {
+	if dbConn == nil {
 		return nil, fmt.Errorf("connetion to db is nil")
 	}
-	rows, err := dbs.DB.Query(getMetrics)
+	rows, err := dbConn.Query(getMetrics)
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
 		if err != nil {
@@ -83,25 +78,4 @@ func (dbs *dbPersist) Load() (map[string]*types.Metrics, error) {
 
 	log.Printf("loaded %d metrics\n", len(metrics))
 	return metrics, nil
-}
-
-func (dbs *dbPersist) Dump(metrics map[string]*types.Metrics) error {
-	log.Println("save to DB")
-
-	if dbs.DB == nil {
-		return fmt.Errorf("connetion to db is nil")
-	}
-
-	_, err := dbs.DB.Exec(emptyMetricTable)
-	if err != nil {
-		return err
-	}
-	for _, v := range metrics {
-		_, err = dbs.DB.Exec(insertMetric, v.ID, v.MType, &v.Value, &v.Delta)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

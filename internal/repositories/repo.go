@@ -5,7 +5,6 @@ import (
 )
 
 type MetricSaver interface {
-	Dump() error
 	SaveMetric(metric *types.Metrics) error
 	GetGaugeMetricAsString(name string) (string, error)
 	GetCounterMetricAsString(name string) (string, error)

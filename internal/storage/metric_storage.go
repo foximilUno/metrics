@@ -4,24 +4,22 @@ import (
 	"fmt"
 	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/repositories"
+	"github.com/foximilUno/metrics/internal/storage/db"
+	"github.com/foximilUno/metrics/internal/storage/file"
 	"github.com/foximilUno/metrics/internal/types"
 	"log"
 	"math"
 	"time"
 )
 
-type Dump struct {
-	DumpedMetrics []types.Metrics `json:"dumpedMetrics"`
-}
-
 type MapStorage struct {
-	metrics map[string]*types.Metrics
+	Metrics map[string]*types.Metrics
 	Persist repositories.Persist
 }
 
 func NewMapStorage() *MapStorage {
 	return &MapStorage{
-		metrics: make(map[string]*types.Metrics),
+		Metrics: make(map[string]*types.Metrics),
 	}
 }
 
@@ -29,12 +27,12 @@ func (srm *MapStorage) Prepare(cfg *config.MetricServerConfig) error {
 	var persist repositories.Persist
 	var err error
 	if len(cfg.DatabaseDsn) != 0 {
-		persist, err = NewDbPersist(cfg.DatabaseDsn)
+		persist, err = db.NewDbPersist(cfg.DatabaseDsn)
 		if err != nil {
 			return fmt.Errorf("problem with create db persist: %e", err)
 		}
 	} else if len(cfg.StoreFile) != 0 {
-		persist = NewFilePersist(cfg.StoreFile)
+		persist = file.NewFilePersist(cfg.StoreFile)
 	}
 
 	if persist != nil {
@@ -44,7 +42,7 @@ func (srm *MapStorage) Prepare(cfg *config.MetricServerConfig) error {
 		if cfg.Restore {
 			log.Printf("Restore from %s\r", persist)
 
-			srm.metrics, err = persist.Load()
+			srm.Metrics, err = persist.Load()
 
 			if err != nil {
 				return fmt.Errorf("cant load metrics from persist: %e\n", err)
@@ -59,7 +57,7 @@ func (srm *MapStorage) Prepare(cfg *config.MetricServerConfig) error {
 			for {
 				select {
 				case <-ticker.C:
-					if err := srm.Persist.Dump(srm.metrics); err != nil {
+					if err := srm.Dump(); err != nil {
 						log.Printf("cant save : err:%e", err)
 					}
 				default:
@@ -75,16 +73,16 @@ func (srm *MapStorage) Prepare(cfg *config.MetricServerConfig) error {
 }
 
 func (srm *MapStorage) Dump() error {
-	return srm.Persist.Dump(srm.metrics)
+	return srm.Persist.Dump(srm.Metrics)
 }
 
 func (srm *MapStorage) SaveMetric(metric *types.Metrics) error {
 	if metric.MType == "counter" {
-		if _, ok := srm.metrics[metric.ID]; !ok {
-			srm.metrics[metric.ID] = metric
+		if _, ok := srm.Metrics[metric.ID]; !ok {
+			srm.Metrics[metric.ID] = metric
 			return nil
 		}
-		curDelta := srm.metrics[metric.ID].Delta
+		curDelta := srm.Metrics[metric.ID].Delta
 
 		after, err := sumWithCheck(*curDelta, *metric.Delta)
 		if err != nil {
@@ -98,16 +96,16 @@ func (srm *MapStorage) SaveMetric(metric *types.Metrics) error {
 			*metric.Delta,
 			after)
 		metric.Delta = &after
-		srm.metrics[metric.ID] = metric
+		srm.Metrics[metric.ID] = metric
 
 	} else {
-		srm.metrics[metric.ID] = metric
+		srm.Metrics[metric.ID] = metric
 	}
 	return nil
 }
 
 func (srm *MapStorage) GetGaugeMetricAsString(name string) (string, error) {
-	if m, ok := srm.metrics[name]; !ok {
+	if m, ok := srm.Metrics[name]; !ok {
 		return "", fmt.Errorf("cant find such metric with type gauge")
 	} else {
 		if m.Value == nil {
@@ -118,7 +116,7 @@ func (srm *MapStorage) GetGaugeMetricAsString(name string) (string, error) {
 }
 
 func (srm *MapStorage) GetCounterMetricAsString(name string) (string, error) {
-	if m, ok := srm.metrics[name]; !ok {
+	if m, ok := srm.Metrics[name]; !ok {
 		return "", fmt.Errorf("cant find such metric with type counter")
 	} else {
 		if m.Delta == nil {
@@ -129,8 +127,8 @@ func (srm *MapStorage) GetCounterMetricAsString(name string) (string, error) {
 }
 
 func (srm *MapStorage) GetMetricNamesByTypes(metricType string) []string {
-	keys := make([]string, 0, len(srm.metrics))
-	for _, v := range srm.metrics {
+	keys := make([]string, 0, len(srm.Metrics))
+	for _, v := range srm.Metrics {
 		if v.MType == metricType {
 			keys = append(keys, v.ID)
 		}
