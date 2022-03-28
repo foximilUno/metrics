@@ -2,7 +2,6 @@ package file
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/types"
 	"io"
@@ -37,7 +36,8 @@ func (f *filePersist) Load() (map[string]*types.Metrics, error) {
 	var dump *Dump
 
 	if err := decoder.Decode(&dump); err == io.EOF {
-		return nil, fmt.Errorf("eof error")
+		log.Println("file is empty")
+		return map[string]*types.Metrics{}, nil
 	} else if err != nil {
 		log.Fatal("fatal", err)
 	}

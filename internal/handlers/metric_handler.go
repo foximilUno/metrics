@@ -120,7 +120,7 @@ func commonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, e
 	default:
 		return http.StatusNotImplemented,
 			fmt.Errorf("bad request: %s cant be, use %s",
-				metric.ID,
+				metric.MType,
 				reflect.ValueOf(allowedTypes).MapKeys())
 	}
 
@@ -160,7 +160,7 @@ func commonGetMetric(metric *types.Metrics, s repositories.MetricSaver) (string,
 		return "",
 			http.StatusNotImplemented,
 			fmt.Errorf("bad request: %s cant be, use %s",
-				metric.ID,
+				metric.MType,
 				reflect.ValueOf(allowedTypes).MapKeys())
 	}
 	return result, 0, nil

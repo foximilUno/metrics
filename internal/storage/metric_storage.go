@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/repositories"
-	"github.com/foximilUno/metrics/internal/storage/db"
 	"github.com/foximilUno/metrics/internal/storage/file"
 	"github.com/foximilUno/metrics/internal/storage/utils"
 	"github.com/foximilUno/metrics/internal/types"
@@ -26,12 +25,7 @@ func NewMapStorage() *MapStorage {
 func (srm *MapStorage) Prepare(cfg *config.MetricServerConfig) error {
 	var persist repositories.Persist
 	var err error
-	if len(cfg.DatabaseDsn) != 0 {
-		persist, err = db.NewDbPersist(cfg.DatabaseDsn)
-		if err != nil {
-			return fmt.Errorf("problem with create db persist: %e", err)
-		}
-	} else if len(cfg.StoreFile) != 0 {
+	if len(cfg.StoreFile) != 0 {
 		persist = file.NewFilePersist(cfg.StoreFile)
 	}
 
@@ -90,8 +84,4 @@ func (srm *MapStorage) GetCounterMetricAsString(name string) (string, error) {
 
 func (srm *MapStorage) GetMetricNamesByTypes(metricType string) []string {
 	return utils.GetMetricNamesByTypesFromMap(srm.Metrics, metricType)
-}
-
-func (srm *MapStorage) IsPersisted() bool {
-	return srm.Persist != nil
 }
