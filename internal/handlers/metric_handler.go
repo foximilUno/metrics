@@ -56,13 +56,6 @@ func readNewMetricByJSON(r *http.Request) (*types.Metrics, error) {
 		return nil, fmt.Errorf("can't unmarshall request body: %e", err)
 	}
 
-	if metric.MType == "gauge" && metric.Value == nil {
-		return nil, fmt.Errorf("metric with type \"gauge\" without value")
-	}
-	if metric.MType == "counter" && metric.Delta == nil {
-		return nil, fmt.Errorf("metric with type \"counter\" without delta")
-	}
-
 	return metric, nil
 }
 
@@ -205,6 +198,15 @@ func SaveMetricsViaJSON(s repositories.MetricSaver, cfg *config.MetricServerConf
 		metric, err := readNewMetricByJSON(r)
 		if err != nil {
 			SendError(http.StatusBadRequest, w, err.Error())
+			return
+		}
+
+		if metric.MType == "gauge" && metric.Value == nil {
+			SendError(http.StatusBadRequest, w, fmt.Errorf("metric with type \"gauge\" without value").Error())
+			return
+		}
+		if metric.MType == "counter" && metric.Delta == nil {
+			SendError(http.StatusBadRequest, w, fmt.Errorf("metric with type \"counter\" without delta").Error())
 			return
 		}
 
