@@ -6,9 +6,9 @@ import (
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/storage/db"
 	"github.com/foximilUno/metrics/internal/storage/file"
+	"github.com/foximilUno/metrics/internal/storage/utils"
 	"github.com/foximilUno/metrics/internal/types"
 	"log"
-	"math"
 	"time"
 )
 
@@ -77,73 +77,21 @@ func (srm *MapStorage) Dump() error {
 }
 
 func (srm *MapStorage) SaveMetric(metric *types.Metrics) error {
-	if metric.MType == "counter" {
-		if _, ok := srm.Metrics[metric.ID]; !ok {
-			srm.Metrics[metric.ID] = metric
-			return nil
-		}
-		curDelta := srm.Metrics[metric.ID].Delta
-
-		after, err := sumWithCheck(*curDelta, *metric.Delta)
-		if err != nil {
-			return fmt.Errorf("cant increase counter with name %s: %e", metric.ID, err)
-
-		}
-		log.Printf(
-			"successfully increase counter %s: before: %d, val:%d, after:%d \r\n",
-			metric.ID,
-			*curDelta,
-			*metric.Delta,
-			after)
-		metric.Delta = &after
-		srm.Metrics[metric.ID] = metric
-
-	} else {
-		srm.Metrics[metric.ID] = metric
-	}
-	return nil
+	return utils.ChangeMetricInMap(srm.Metrics, metric)
 }
 
 func (srm *MapStorage) GetGaugeMetricAsString(name string) (string, error) {
-	if m, ok := srm.Metrics[name]; !ok {
-		return "", fmt.Errorf("cant find such metric with type gauge")
-	} else {
-		if m.Value == nil {
-			return "", nil
-		}
-		return fmt.Sprint(*m.Value), nil
-	}
+	return utils.GetMetricValueAsStringFromMap(srm.Metrics, name)
 }
 
 func (srm *MapStorage) GetCounterMetricAsString(name string) (string, error) {
-	if m, ok := srm.Metrics[name]; !ok {
-		return "", fmt.Errorf("cant find such metric with type counter")
-	} else {
-		if m.Delta == nil {
-			return "", nil
-		}
-		return fmt.Sprint(*m.Delta), nil
-	}
+	return utils.GetMetricCounterAsStringFromMap(srm.Metrics, name)
 }
 
 func (srm *MapStorage) GetMetricNamesByTypes(metricType string) []string {
-	keys := make([]string, 0, len(srm.Metrics))
-	for _, v := range srm.Metrics {
-		if v.MType == metricType {
-			keys = append(keys, v.ID)
-		}
-	}
-	return keys
+	return utils.GetMetricNamesByTypesFromMap(srm.Metrics, metricType)
 }
 
 func (srm *MapStorage) IsPersisted() bool {
 	return srm.Persist != nil
-}
-
-func sumWithCheck(var1 int64, var2 int64) (int64, error) {
-	if math.MaxInt64-var1 >= var2 {
-		return var1 + var2, nil
-	} else {
-		return 0, fmt.Errorf("overflow")
-	}
 }

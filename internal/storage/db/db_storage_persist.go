@@ -27,7 +27,7 @@ func NewDbPersist(connectionString string) (*dbPersist, error) {
 }
 
 func (dbs *dbPersist) Load() (map[string]*types.Metrics, error) {
-	return GetAllMetricsFromDB(dbs.DB)
+	return GetAllMetricsFromDB(dbs.DB, getMetrics)
 }
 
 func (dbs *dbPersist) Dump(metrics map[string]*types.Metrics) error {

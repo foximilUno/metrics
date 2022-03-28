@@ -15,10 +15,11 @@ const (
 	"value" double precision,
 	"delta" bigint
 );`
-
-	insertMetric = `insert into metrics("name", "type", "value", "delta") values($1,$2,$3,$4);`
-
-	getMetrics = `select "name", "type", value, delta from metrics;`
+	insertMetric           = `insert into metrics("name", "type", "value", "delta") values($1,$2,$3,$4);`
+	getMetrics             = `select "name", "type", value, delta from metrics;`
+	getMetricByNameAndType = `select "name", "type", value, delta from metrics where "name"=$1 and "type"=$2;`
+	getMetricsByType       = `select "name", "type", value, delta from metrics where "type"=$1::varchar;`
+	updateMetric           = `update metrics set value=$1, delta=$2 where "name"=$3;`
 )
 
 func InsertMetricToDB(db *sql.DB, metrics *types.Metrics) (sql.Result, error) {
@@ -38,21 +39,31 @@ func GetDBConnectWithCreatedTable(connectionString string) (*sql.DB, error) {
 	return dbConnect, nil
 }
 
-func GetAllMetricsFromDB(dbConn *sql.DB) (map[string]*types.Metrics, error) {
+func GetAllMetricsFromDB(dbConn *sql.DB, request string, clause ...string) (map[string]*types.Metrics, error) {
 	metrics := make(map[string]*types.Metrics)
 	if dbConn == nil {
 		return nil, fmt.Errorf("connetion to db is nil")
 	}
-	rows, err := dbConn.Query(getMetrics)
-	defer func(rows *sql.Rows) {
-		err := rows.Close()
-		if err != nil {
+	var rows *sql.Rows
+	var err error
+	//TODO да, ужасно))
+	if len(clause) == 0 {
+		rows, err = dbConn.Query(request)
+	} else if len(clause) == 1 {
+		rows, err = dbConn.Query(request, clause[0])
+	} else {
+		rows, err = dbConn.Query(request, clause[0], clause[1])
+	}
 
-		}
-	}(rows)
 	if err != nil {
 		return nil, fmt.Errorf("cant exec getMetrics request: %e", err)
 	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			log.Printf("cant clause rows: %e", err)
+		}
+	}(rows)
 
 	for rows.Next() {
 		m := &types.Metrics{}
@@ -76,6 +87,5 @@ func GetAllMetricsFromDB(dbConn *sql.DB) (map[string]*types.Metrics, error) {
 		return nil, fmt.Errorf("there is errors while fetching: %e", err)
 	}
 
-	log.Printf("loaded %d metrics\n", len(metrics))
 	return metrics, nil
 }

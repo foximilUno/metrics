@@ -5,11 +5,8 @@ import (
 	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/server"
-	st "github.com/foximilUno/metrics/internal/storage"
+	"github.com/foximilUno/metrics/internal/storage/db"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {
@@ -23,11 +20,10 @@ func main() {
 		log.Fatal("encoder err")
 	}
 
-	storage := st.NewMapStorage()
+	storage, err := db.NewDbStorage(cfg.DatabaseDsn)
 
-	err = storage.Prepare(cfg)
 	if err != nil {
-		log.Fatalf("problem with prepare storage: %e", err)
+		log.Fatalf("problem with establish connection to storage: %e", err)
 	}
 
 	metricServer, err := server.NewMetricServer(cfg, repositories.MetricSaver(storage))
@@ -35,20 +31,5 @@ func main() {
 		log.Fatalf("cant start metricServer: %e", err)
 	}
 
-	go metricServer.RunServer()
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
-
-	<-sigChan
-	log.Println("save on exit")
-	if storage.IsPersisted() {
-		if err := storage.Dump(); err != nil {
-			log.Println(err)
-			return
-		}
-	}
+	metricServer.RunServer()
 }
