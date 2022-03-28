@@ -19,7 +19,7 @@ const (
 	getMetrics             = `select "name", "type", value, delta from metrics;`
 	getMetricByNameAndType = `select "name", "type", value, delta from metrics where "name"=$1 and "type"=$2;`
 	getMetricsByType       = `select "name", "type", value, delta from metrics where "type"=$1::varchar;`
-	updateMetric           = `update metrics set value=$1, delta=$2 where "name"=$3;`
+	updateMetric           = `update metrics set value=$1, delta=$2 where "name"=$3 and "type"=$4;`
 )
 
 func InsertMetricToDB(db *sql.DB, metrics *types.Metrics) (sql.Result, error) {

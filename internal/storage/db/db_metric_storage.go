@@ -27,14 +27,21 @@ func (d dbStorage) SaveMetric(metric *types.Metrics) error {
 	if err != nil {
 		return err
 	}
-	if len(metrics) != 1 {
+	if len(metrics) > 1 {
 		return fmt.Errorf("finded %d metrics with name=\"%s\"", len(metrics), metric.ID)
 	}
+	if len(metrics) == 0 {
+		_, err = InsertMetricToDB(d.DB, metric)
+		if err != nil {
+			return err
+		}
+	}
+
 	err = utils.ChangeMetricInMap(metrics, metric)
 	if err != nil {
 		return err
 	}
-	_, err = d.DB.Exec(updateMetric, &metrics[metric.ID].Value, &metrics[metric.ID].Delta, metric.ID)
+	_, err = d.DB.Exec(updateMetric, &metrics[metric.ID].Value, &metrics[metric.ID].Delta, metric.ID, metric.MType)
 	return err
 }
 
