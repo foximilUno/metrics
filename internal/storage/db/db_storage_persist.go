@@ -15,7 +15,7 @@ type dbPersist struct {
 	DB *sql.DB
 }
 
-func NewDbPersist(connectionString string) (*dbPersist, error) {
+func NewDBPersist(connectionString string) (*dbPersist, error) {
 	dbConnect, err := GetDBConnectWithCreatedTable(connectionString)
 	if err != nil {
 		return nil, err
