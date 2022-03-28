@@ -27,9 +27,11 @@ func main() {
 	var storage repositories.MetricSaver
 	var mapStorage *st.MapStorage
 
-	storage, err = db.NewDbStorage(cfg.DatabaseDsn)
 	if len(cfg.DatabaseDsn) != 0 {
-		storage, err = db.NewDbStorage(cfg.DatabaseDsn)
+		storage, err = db.NewDBStorage(cfg.DatabaseDsn)
+		if err != nil {
+			log.Fatalf("error while init DB storage: %e", err)
+		}
 	} else {
 		mapStorage = st.NewMapStorage()
 		err = mapStorage.Prepare(cfg)
@@ -39,11 +41,7 @@ func main() {
 		}
 	}
 
-	if err != nil {
-		log.Fatalf("problem with establish connection to storage: %e", err)
-	}
-
-	metricServer, err := server.NewMetricServer(cfg, repositories.MetricSaver(storage))
+	metricServer, err := server.NewMetricServer(cfg, storage)
 	if err != nil {
 		log.Fatalf("cant start metricServer: %e", err)
 	}

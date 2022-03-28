@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func PingDb(driverName string, dbConnectionString string) http.HandlerFunc {
+func PingDB(driverName string, dbConnectionString string) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 		connect, err := sql.Open(driverName, dbConnectionString)
 		if err != nil {

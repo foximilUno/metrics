@@ -39,7 +39,7 @@ func (srm *MapStorage) Prepare(cfg *config.MetricServerConfig) error {
 			srm.Metrics, err = persist.Load()
 
 			if err != nil {
-				return fmt.Errorf("cant load metrics from persist: %e\n", err)
+				return fmt.Errorf("cant load metrics from persist: %e", err)
 			}
 		} else {
 			log.Println("Start server without restoring from persist")

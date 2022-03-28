@@ -29,7 +29,7 @@ func NewMetricServer(cfg *config.MetricServerConfig, storage repositories.Metric
 			r.Post("/", handlers.GetMetricViaJSON(storage, cfg))
 		})
 
-		r.Get("/ping", handlers.PingDb("pgx", cfg.DatabaseDsn))
+		r.Get("/ping", handlers.PingDB("pgx", cfg.DatabaseDsn))
 	})
 
 	r.Get("/", handlers.GetMetricsTable(storage))

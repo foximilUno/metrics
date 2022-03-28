@@ -11,7 +11,7 @@ type dbStorage struct {
 	DB *sql.DB
 }
 
-func NewDbStorage(connectionString string) (*dbStorage, error) {
+func NewDBStorage(connectionString string) (*dbStorage, error) {
 	dbConnect, err := GetDBConnectWithCreatedTable(connectionString)
 	if err != nil {
 		return nil, err
