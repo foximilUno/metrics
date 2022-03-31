@@ -23,20 +23,28 @@ func NewDBStorage(connectionString string) (*dbStorage, error) {
 }
 
 func (d dbStorage) SaveMetric(metric *types.Metrics) error {
+
+	//find metric with same ID and type
 	metrics, err := GetAllMetricsFromDB(d.DB, getMetricByNameAndType, metric.ID, metric.MType)
 	if err != nil {
 		return err
 	}
+	//if metrics more than one is bad consistency
 	if len(metrics) > 1 {
-		return fmt.Errorf("finded %d metrics with name=\"%s\"", len(metrics), metric.ID)
+		return fmt.Errorf(
+			"finded %d metrics with name=\"%s\" and type=\"%s\"", len(metrics), metric.ID, metric.MType)
 	}
+
+	//if no one same metric - is new - create new row in DB and exit from function
 	if len(metrics) == 0 {
 		_, err = InsertMetricToDB(d.DB, metric)
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 
+	// by default change existed metric in map
 	err = utils.ChangeMetricInMap(metrics, metric)
 	if err != nil {
 		return err

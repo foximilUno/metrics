@@ -112,16 +112,16 @@ func returnData(w http.ResponseWriter, r *http.Request, data []byte, contentType
 }
 
 func commonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, error) {
-	switch metric.MType {
-	case "gauge", "counter":
-		if err := s.SaveMetric(metric); err != nil {
-			return http.StatusInternalServerError, err
-		}
-	default:
+
+	if _, ok := allowedTypes[metric.MType]; !ok {
 		return http.StatusNotImplemented,
 			fmt.Errorf("bad request: %s cant be, use %s",
 				metric.MType,
 				reflect.ValueOf(allowedTypes).MapKeys())
+	}
+
+	if err := s.SaveMetric(metric); err != nil {
+		return http.StatusInternalServerError, err
 	}
 
 	log.Printf("invoked update metric")
@@ -172,19 +172,22 @@ func isNeedEncryptOrDecrypt(cfg *config.MetricServerConfig) bool {
 
 func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		//check elements in path
-		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
 
+		//check valid path
+		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
 		if len(segments) != 4 {
 			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
 			return
 		}
+
+		//extract metric
 		metric, err := readNewMetricByTextPlain(segments)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
+		//try save metric
 		if status, err := commonSaveMetric(metric, s); err != nil {
 			SendError(status, w, err.Error())
 			return
@@ -202,11 +205,17 @@ func SaveMetricsViaJSON(s repositories.MetricSaver, cfg *config.MetricServerConf
 		}
 
 		if metric.MType == "gauge" && metric.Value == nil {
-			SendError(http.StatusBadRequest, w, fmt.Errorf("metric with type \"gauge\" without value").Error())
+			SendError(
+				http.StatusBadRequest,
+				w,
+				fmt.Errorf("metric \"%s\" with type \"gauge\" without value", metric.ID).Error())
 			return
 		}
 		if metric.MType == "counter" && metric.Delta == nil {
-			SendError(http.StatusBadRequest, w, fmt.Errorf("metric with type \"counter\" without delta").Error())
+			SendError(
+				http.StatusBadRequest,
+				w,
+				fmt.Errorf("metric \"%s\" with type \"counter\" without value", metric.ID).Error())
 			return
 		}
 
