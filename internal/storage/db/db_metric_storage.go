@@ -53,6 +53,70 @@ func (d dbStorage) SaveMetric(metric *types.Metrics) error {
 	return err
 }
 
+//SaveBatchMetrics create DB write in one trancsaction
+func (d *dbStorage) SaveBatchMetrics(metrics []*types.Metrics) error {
+	//get all metrics from DB
+	curDBMetrics, err := GetAllMetricsFromDB(d.DB, getMetrics)
+	if err != nil {
+		return err
+	}
+
+	notExistedMetrics := make([]*types.Metrics, 0, len(metrics))
+	existedMetrics := make([]*types.Metrics, 0, len(metrics))
+	for _, m := range metrics {
+		//if no one metric
+		if curM, ok := curDBMetrics[m.ID]; !ok {
+			notExistedMetrics = append(notExistedMetrics, m)
+			//if metric exist by type is not equal
+		} else if m.MType != curM.MType {
+			notExistedMetrics = append(notExistedMetrics, m)
+			//if exist
+		} else {
+			existedMetrics = append(existedMetrics, m)
+		}
+	}
+
+	tx, err := d.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer func(tx *sql.Tx) {
+		err := tx.Rollback()
+		if err != nil {
+
+		}
+	}(tx)
+	insSt, err := tx.Prepare(insertMetric)
+	if err != nil {
+		return err
+	}
+	if len(notExistedMetrics) != 0 {
+		for _, m := range metrics {
+			_, err = insSt.Exec(m.ID, m.MType, &m.Value, &m.Delta)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	updSt, err := tx.Prepare(updateMetric)
+	if err != nil {
+		return err
+	}
+	if len(existedMetrics) != 0 {
+		for _, m := range existedMetrics {
+			if err = utils.ChangeMetricInMap(curDBMetrics, m); err != nil {
+				return err
+			}
+			_, err = updSt.Exec(&curDBMetrics[m.ID].Value, &curDBMetrics[m.ID].Delta, m.ID, m.MType)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
+}
+
 func (d dbStorage) GetGaugeMetricAsString(name string) (string, error) {
 	metrics, err := GetAllMetricsFromDB(d.DB, getMetricByNameAndType, name, "gauge")
 	if err != nil {

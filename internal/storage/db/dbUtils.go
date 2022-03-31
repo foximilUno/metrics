@@ -15,7 +15,7 @@ const (
 	"value" double precision,
 	"delta" bigint
 );`
-	insertMetric           = `insert into metrics("name", "type", "value", "delta") values($1,$2,$3,$4);`
+	insertMetric           = `insert into metrics("name", "type", "value", "delta") values($1,$2,$3,$4)`
 	getMetrics             = `select "name", "type", value, delta from metrics;`
 	getMetricByNameAndType = `select "name", "type", value, delta from metrics where "name"=$1 and "type"=$2;`
 	getMetricsByType       = `select "name", "type", value, delta from metrics where "type"=$1::varchar;`

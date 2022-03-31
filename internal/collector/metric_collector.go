@@ -109,10 +109,11 @@ func (mc *collector) Collect() {
 func (mc *collector) Report() {
 	log.Println("Report to server collect data")
 
-	for _, v := range mc.data {
-		currentURL := mc.baseURL + "/update/"
+	var metrics []*types.Metrics
 
-		m := types.Metrics{
+	for _, v := range mc.data {
+
+		m := &types.Metrics{
 			ID:    v.entityName,
 			MType: v.entityType,
 		}
@@ -121,56 +122,84 @@ func (mc *collector) Report() {
 		case gauge:
 			newVal := float64(v.entityValue)
 			m.Value = &newVal
-			if len(mc.cfg.Key) > 0 {
-				encryptVal, err := secure.EncryptMetric(&m, mc.cfg.Key)
-				if err != nil {
-					log.Fatalf("cant encrypt from val=%f: %e", newVal, err)
-				}
-				m.Hash = encryptVal
-			}
 		case counter:
 			newVal := int64(v.entityValue)
 			m.Delta = &newVal
-			if len(mc.cfg.Key) > 0 {
-				encryptVal, err := secure.EncryptMetric(&m, mc.cfg.Key)
-				if err != nil {
-					log.Fatalf("cant encrypt from val=%d: %e", newVal, err)
-				}
-				m.Hash = encryptVal
-			}
-
 		default:
 			panic(fmt.Sprintf("unsupported for report type of metric: %s", v.entityType))
 		}
+		if len(mc.cfg.Key) > 0 {
+			encryptVal, err := secure.EncryptMetric(m, mc.cfg.Key)
+			if err != nil {
+				log.Fatalf("cant encrypt metric %v: %e", m, err)
+			}
+			m.Hash = encryptVal
+		}
 
-		b, err := json.Marshal(m)
+		metrics = append(metrics, m)
+	}
+
+	if mc.isBatchUpdateExists(mc.baseURL + "/updates") {
+		b, err := json.Marshal(metrics)
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Println("error while marshalling", err)
 		}
-
-		req, err := http.NewRequest(http.MethodPost, currentURL, bytes.NewBuffer(b))
-
-		if err != nil {
-			//TODO what to do)) just logging right now
-			log.Println("error while make request", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := mc.client.Do(req)
-
-		if err != nil {
-			//TODO what to do)) just logging right now
-			log.Printf("error while send request: %e\n", err)
+		if err := mc.doRequest(b, mc.baseURL+"/updates"); err != nil {
+			log.Printf("error: %e", err)
 			return
 		}
-
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("server return error for url %s %d\n", currentURL, resp.StatusCode)
+	} else {
+		currentURL := mc.baseURL + "/update"
+		for _, m := range metrics {
+			b, err := json.Marshal(m)
+			if err != nil {
+				//TODO what to do)) just logging right now
+				log.Println("error while marshalling", err)
+			}
+			if err := mc.doRequest(b, currentURL); err != nil {
+				log.Printf("error: %e", err)
+				return
+			}
 		}
 	}
 	log.Println("Reports ended")
+}
 
+//isBatchUpdateExists checks that path /updates available
+func (mc *collector) isBatchUpdateExists(checkURL string) bool {
+	rq, err := http.NewRequest(http.MethodPost, checkURL, nil)
+	if err != nil {
+		return false
+	}
+	r, err := mc.client.Do(rq)
+	if err != nil {
+		return false
+	}
+	return r.StatusCode != http.StatusNotFound
+}
+
+func (mc *collector) doRequest(b []byte, currentURL string) error {
+
+	req, err := http.NewRequest(http.MethodPost, currentURL, bytes.NewBuffer(b))
+
+	if err != nil {
+		//TODO what to do)) just logging right now
+		return fmt.Errorf("error while make request: %e", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := mc.client.Do(req)
+
+	if err != nil {
+		//TODO what to do)) just logging right now
+		return fmt.Errorf("error while send request: %e\n", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server return error for url %s %d\n", currentURL, resp.StatusCode)
+	}
+	return nil
 }

@@ -9,4 +9,5 @@ type MetricSaver interface {
 	GetGaugeMetricAsString(name string) (string, error)
 	GetCounterMetricAsString(name string) (string, error)
 	GetMetricNamesByTypes(metricType string) []string
+	SaveBatchMetrics(metrics []*types.Metrics) error
 }

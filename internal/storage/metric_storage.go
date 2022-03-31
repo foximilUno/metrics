@@ -85,3 +85,7 @@ func (srm *MapStorage) GetCounterMetricAsString(name string) (string, error) {
 func (srm *MapStorage) GetMetricNamesByTypes(metricType string) []string {
 	return utils.GetMetricNamesByTypesFromMap(srm.Metrics, metricType)
 }
+
+func (srm *MapStorage) SaveBatchMetrics(metrics []*types.Metrics) error {
+	return fmt.Errorf("not implemented for map storage")
+}
