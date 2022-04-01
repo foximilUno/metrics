@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/foximilUno/metrics/internal/storage/utils"
 	"github.com/foximilUno/metrics/internal/types"
+	"log"
 )
 
 type dbStorage struct {
@@ -22,7 +23,7 @@ func NewDBStorage(connectionString string) (*dbStorage, error) {
 	return st, nil
 }
 
-func (d dbStorage) SaveMetric(metric *types.Metrics) error {
+func (d *dbStorage) SaveMetric(metric *types.Metrics) error {
 
 	//find metric with same ID and type
 	metrics, err := GetAllMetricsFromDB(d.DB, getMetricByNameAndType, metric.ID, metric.MType)
@@ -83,7 +84,7 @@ func (d *dbStorage) SaveBatchMetrics(metrics []*types.Metrics) error {
 	defer func(tx *sql.Tx) {
 		err := tx.Rollback()
 		if err != nil {
-
+			log.Printf("error while roolback: %e", err)
 		}
 	}(tx)
 	insSt, err := tx.Prepare(insertMetric)
@@ -117,7 +118,7 @@ func (d *dbStorage) SaveBatchMetrics(metrics []*types.Metrics) error {
 	return tx.Commit()
 }
 
-func (d dbStorage) GetGaugeMetricAsString(name string) (string, error) {
+func (d *dbStorage) GetGaugeMetricAsString(name string) (string, error) {
 	metrics, err := GetAllMetricsFromDB(d.DB, getMetricByNameAndType, name, "gauge")
 	if err != nil {
 		return "", err
@@ -125,7 +126,7 @@ func (d dbStorage) GetGaugeMetricAsString(name string) (string, error) {
 	return utils.GetMetricValueAsStringFromMap(metrics, name)
 }
 
-func (d dbStorage) GetCounterMetricAsString(name string) (string, error) {
+func (d *dbStorage) GetCounterMetricAsString(name string) (string, error) {
 	metrics, err := GetAllMetricsFromDB(d.DB, getMetricByNameAndType, name, "counter")
 	if err != nil {
 		return "", err
@@ -133,10 +134,14 @@ func (d dbStorage) GetCounterMetricAsString(name string) (string, error) {
 	return utils.GetMetricCounterAsStringFromMap(metrics, name)
 }
 
-func (d dbStorage) GetMetricNamesByTypes(metricType string) []string {
+func (d *dbStorage) GetMetricNamesByTypes(metricType string) []string {
 	metrics, err := GetAllMetricsFromDB(d.DB, getMetricsByType, metricType)
 	if err != nil {
 		return []string{}
 	}
 	return utils.GetMetricNamesByTypesFromMap(metrics, metricType)
+}
+
+func (d *dbStorage) IsBatchSupports() bool {
+	return true
 }

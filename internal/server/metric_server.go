@@ -30,7 +30,7 @@ func NewMetricServer(cfg *config.MetricServerConfig, storage repositories.Metric
 			r.Get("/{metricType}/{metricName}", handlers.GetMetricViaTextPlain(storage))
 			r.Post("/", handlers.GetMetricViaJSON(storage, cfg))
 		})
-
+		r.Get("/batchSupport", handlers.CheckBatchSupport(storage))
 		r.Get("/ping", handlers.PingDB("pgx", cfg.DatabaseDsn))
 	})
 

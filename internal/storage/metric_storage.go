@@ -89,3 +89,7 @@ func (srm *MapStorage) GetMetricNamesByTypes(metricType string) []string {
 func (srm *MapStorage) SaveBatchMetrics(metrics []*types.Metrics) error {
 	return fmt.Errorf("not implemented for map storage")
 }
+
+func (d *MapStorage) IsBatchSupports() bool {
+	return false
+}

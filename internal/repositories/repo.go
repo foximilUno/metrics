@@ -10,4 +10,5 @@ type MetricSaver interface {
 	GetCounterMetricAsString(name string) (string, error)
 	GetMetricNamesByTypes(metricType string) []string
 	SaveBatchMetrics(metrics []*types.Metrics) error
+	IsBatchSupports() bool
 }

@@ -401,3 +401,11 @@ func GetMetricsTable(s repositories.MetricSaver) http.HandlerFunc {
 		}
 	}
 }
+
+func CheckBatchSupport(s repositories.MetricSaver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.IsBatchSupports() {
+			w.WriteHeader(http.StatusNotImplemented)
+		}
+	}
+}

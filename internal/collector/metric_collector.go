@@ -18,6 +18,11 @@ import (
 const (
 	gauge   = "gauge"
 	counter = "counter"
+
+	//available paths
+	updatePath      = "/update"
+	batchUpdatePath = "/updates"
+	batchSupports   = "/batchSupport"
 )
 
 type MetricEntity struct {
@@ -139,18 +144,18 @@ func (mc *collector) Report() {
 		metrics = append(metrics, m)
 	}
 
-	if mc.isBatchUpdateExists(mc.baseURL + "/updates") {
+	if mc.isBatchSupports() {
 		b, err := json.Marshal(metrics)
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Println("error while marshalling", err)
 		}
-		if err := mc.doRequest(b, mc.baseURL+"/updates"); err != nil {
+		if err := mc.doRequest(b, mc.baseURL+batchUpdatePath); err != nil {
 			log.Printf("error: %e", err)
 			return
 		}
 	} else {
-		currentURL := mc.baseURL + "/update"
+		currentURL := mc.baseURL + updatePath
 		for _, m := range metrics {
 			b, err := json.Marshal(m)
 			if err != nil {
@@ -167,8 +172,8 @@ func (mc *collector) Report() {
 }
 
 //isBatchUpdateExists checks that path /updates available
-func (mc *collector) isBatchUpdateExists(checkURL string) bool {
-	rq, err := http.NewRequest(http.MethodPost, checkURL, nil)
+func (mc *collector) isBatchSupports() bool {
+	rq, err := http.NewRequest(http.MethodGet, mc.baseURL+batchSupports, nil)
 	if err != nil {
 		return false
 	}
@@ -176,7 +181,8 @@ func (mc *collector) isBatchUpdateExists(checkURL string) bool {
 	if err != nil {
 		return false
 	}
-	return r.StatusCode != http.StatusNotFound
+	defer r.Body.Close()
+	return r.StatusCode == http.StatusOK
 }
 
 func (mc *collector) doRequest(b []byte, currentURL string) error {
@@ -193,13 +199,13 @@ func (mc *collector) doRequest(b []byte, currentURL string) error {
 
 	if err != nil {
 		//TODO what to do)) just logging right now
-		return fmt.Errorf("error while send request: %e\n", err)
+		return fmt.Errorf("error while send request: %e", err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("server return error for url %s %d\n", currentURL, resp.StatusCode)
+		return fmt.Errorf("server return error for url %s %d", currentURL, resp.StatusCode)
 	}
 	return nil
 }
