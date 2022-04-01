@@ -61,9 +61,18 @@ func (d *dbStorage) SaveBatchMetrics(metrics []*types.Metrics) error {
 		return err
 	}
 
-	notExistedMetrics := make([]*types.Metrics, 0, len(metrics))
-	existedMetrics := make([]*types.Metrics, 0, len(metrics))
-	for _, m := range metrics {
+	//collapse incoming metrics with same metrics
+	collapsedIncomingMetrics := make(map[string]*types.Metrics)
+	for _, v := range metrics {
+		err := utils.ChangeMetricInMap(collapsedIncomingMetrics, v)
+		if err != nil {
+			return err
+		}
+	}
+
+	notExistedMetrics := make([]*types.Metrics, 0, len(collapsedIncomingMetrics))
+	existedMetrics := make([]*types.Metrics, 0, len(collapsedIncomingMetrics))
+	for _, m := range collapsedIncomingMetrics {
 		//if no one metric
 		if curM, ok := curDBMetrics[m.ID]; !ok {
 			notExistedMetrics = append(notExistedMetrics, m)
@@ -87,7 +96,7 @@ func (d *dbStorage) SaveBatchMetrics(metrics []*types.Metrics) error {
 		return err
 	}
 	if len(notExistedMetrics) != 0 {
-		for _, m := range metrics {
+		for _, m := range collapsedIncomingMetrics {
 			_, err = insSt.Exec(m.ID, m.MType, &m.Value, &m.Delta)
 			if err != nil {
 				return err
