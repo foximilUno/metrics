@@ -21,7 +21,7 @@ const (
 
 	//available paths
 	updatePath      = "/update"
-	batchUpdatePath = "/updates"
+	batchUpdatePath = "/updates/"
 	batchSupports   = "/batchSupport"
 )
 
