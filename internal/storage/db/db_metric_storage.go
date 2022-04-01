@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/foximilUno/metrics/internal/storage/utils"
 	"github.com/foximilUno/metrics/internal/types"
-	"log"
 )
 
 type dbStorage struct {
@@ -81,12 +80,8 @@ func (d *dbStorage) SaveBatchMetrics(metrics []*types.Metrics) error {
 	if err != nil {
 		return err
 	}
-	defer func(tx *sql.Tx) {
-		err := tx.Rollback()
-		if err != nil {
-			log.Printf("error while roolback: %e", err)
-		}
-	}(tx)
+	defer tx.Rollback()
+
 	insSt, err := tx.Prepare(insertMetric)
 	if err != nil {
 		return err
