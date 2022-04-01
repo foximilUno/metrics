@@ -24,7 +24,7 @@ func NewMetricServer(cfg *config.MetricServerConfig, storage repositories.Metric
 
 		})
 
-		r.Post("/updates", handlers.SaveBatchMetrics(storage, cfg))
+		r.Post("/updates/", handlers.SaveBatchMetrics(storage, cfg))
 
 		r.Route("/value", func(r chi.Router) {
 			r.Get("/{metricType}/{metricName}", handlers.GetMetricViaTextPlain(storage))
