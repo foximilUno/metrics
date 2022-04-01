@@ -90,6 +90,6 @@ func (srm *MapStorage) SaveBatchMetrics(metrics []*types.Metrics) error {
 	return fmt.Errorf("not implemented for map storage")
 }
 
-func (d *MapStorage) IsBatchSupports() bool {
+func (srm *MapStorage) IsBatchSupports() bool {
 	return false
 }
