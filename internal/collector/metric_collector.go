@@ -7,12 +7,15 @@ import (
 	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/secure"
 	"github.com/foximilUno/metrics/internal/types"
+	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/process"
 	"log"
 	"math/rand"
 	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
@@ -36,6 +39,7 @@ type collector struct {
 	data    map[string]*MetricEntity
 	client  *http.Client
 	cfg     *config.Config
+	m       sync.Mutex
 }
 
 func NewMetricCollector(cfg *config.Config) *collector {
@@ -52,6 +56,7 @@ func NewMetricCollector(cfg *config.Config) *collector {
 		make(map[string]*MetricEntity),
 		&http.Client{},
 		cfg,
+		sync.Mutex{},
 	}
 }
 
@@ -61,10 +66,16 @@ func (mc *collector) WithClient(client *http.Client) *collector {
 }
 
 func (mc *collector) addGauge(name string, value uint64) {
+	mc.m.Lock()
+	defer mc.m.Unlock()
+
 	mc.getEntity(name, gauge).entityValue = value
 }
 
 func (mc *collector) increaseCounter(name string) {
+	mc.m.Lock()
+	defer mc.m.Unlock()
+
 	mc.getEntity(name, counter).entityValue++
 }
 
@@ -111,9 +122,8 @@ func (mc *collector) Collect() {
 	log.Printf("Poll %s\r\n", strconv.FormatUint(mc.data["PollCount"].entityValue, 10))
 }
 
-func (mc *collector) Report() {
+func (mc *collector) Report() error {
 	log.Println("Report to server collect data")
-
 	var metrics []*types.Metrics
 
 	for _, v := range mc.data {
@@ -131,12 +141,13 @@ func (mc *collector) Report() {
 			newVal := int64(v.entityValue)
 			m.Delta = &newVal
 		default:
-			panic(fmt.Sprintf("unsupported for report type of metric: %s", v.entityType))
+			return fmt.Errorf("unsupported for report type of metric: %s", v.entityType)
 		}
+
 		if len(mc.cfg.Key) > 0 {
 			encryptVal, err := secure.EncryptMetric(m, mc.cfg.Key)
 			if err != nil {
-				log.Fatalf("cant encrypt metric %v: %e", m, err)
+				return fmt.Errorf("cant encrypt metric %v: %w", m, err)
 			}
 			m.Hash = encryptVal
 		}
@@ -144,31 +155,33 @@ func (mc *collector) Report() {
 		metrics = append(metrics, m)
 	}
 
+	var err error
+	var b []byte
 	if mc.isBatchSupports() {
-		b, err := json.Marshal(metrics)
+		b, err = json.Marshal(metrics)
 		if err != nil {
-			//TODO what to do)) just logging right now
-			log.Println("error while marshalling", err)
+			return fmt.Errorf("error while marshalling: %w", err)
 		}
-		if err := mc.doRequest(b, mc.baseURL+batchUpdatePath); err != nil {
-			log.Printf("error: %e", err)
-			return
+		err = mc.doRequest(b, mc.baseURL+batchUpdatePath)
+		if err != nil {
+			return fmt.Errorf("error while send batch: %w", err)
 		}
 	} else {
 		currentURL := mc.baseURL + updatePath
 		for _, m := range metrics {
-			b, err := json.Marshal(m)
+			b, err = json.Marshal(m)
 			if err != nil {
-				//TODO what to do)) just logging right now
-				log.Println("error while marshalling", err)
+				return fmt.Errorf("error while marshalling: %w", err)
 			}
-			if err := mc.doRequest(b, currentURL); err != nil {
-				log.Printf("error: %e", err)
-				return
+			err = mc.doRequest(b, currentURL)
+			if err != nil {
+				return fmt.Errorf("error while send batch: %w", err)
 			}
 		}
 	}
+
 	log.Println("Reports ended")
+	return nil
 }
 
 //isBatchUpdateExists checks that path /updates available
@@ -208,4 +221,12 @@ func (mc *collector) doRequest(b []byte, currentURL string) error {
 		return fmt.Errorf("server return error for url %s %d", currentURL, resp.StatusCode)
 	}
 	return nil
+}
+
+func (mc *collector) CollectAdditional() {
+	var stats mem.VirtualMemoryStat
+	var cpuStats process.SystemProcessInformation
+	mc.addGauge("TotalMemory", stats.Total)
+	mc.addGauge("FreeMemory", stats.Free)
+	mc.addGauge("CPUutilization1", cpuStats.NumberOfThreads)
 }
