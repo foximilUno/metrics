@@ -8,7 +8,6 @@ import (
 	"github.com/foximilUno/metrics/internal/secure"
 	"github.com/foximilUno/metrics/internal/types"
 	"github.com/shirou/gopsutil/mem"
-	"github.com/shirou/gopsutil/process"
 	"log"
 	"math/rand"
 	"net/http"
@@ -225,8 +224,8 @@ func (mc *collector) doRequest(b []byte, currentURL string) error {
 
 func (mc *collector) CollectAdditional() {
 	var stats mem.VirtualMemoryStat
-	var cpuStats process.SystemProcessInformation
+	//var cpuStats process.
 	mc.addGauge("TotalMemory", stats.Total)
 	mc.addGauge("FreeMemory", stats.Free)
-	mc.addGauge("CPUutilization1", cpuStats.NumberOfThreads)
+	//mc.addGauge("CPUutilization1", cpuStats.)
 }
