@@ -100,13 +100,9 @@ func main() {
 		}
 	}(ctx, reportTicker.C)
 
-	for {
-		select {
-		case <-sigChan:
-			log.Println("Agent successfully shutdown")
-			cancel()
-			return
-		}
+	for range sigChan {
+		log.Println("Agent successfully shutdown")
+		cancel()
+		return
 	}
-
 }
