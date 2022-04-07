@@ -2,84 +2,43 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
-	"github.com/caarlos0/env"
+	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/repositories"
 	"github.com/foximilUno/metrics/internal/server"
 	st "github.com/foximilUno/metrics/internal/storage"
+	"github.com/foximilUno/metrics/internal/storage/db"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
-var cfg server.MetricServerConfig
-
-//init server config
-func init() {
-	flag.StringVar(&cfg.Host, "a", "localhost:8080", "server url as <host:port>")
-	flag.BoolVar(&cfg.Restore, "r", true, "is restored from file - <true/false>")
-	flag.StringVar(&cfg.StoreFile, "f", "/tmp/devops-metrics-db.json", "path to file to load/save metrics")
-	flag.DurationVar(&cfg.StoreInterval, "i", time.Duration(300*time.Second), "with interval save to file")
-
-	flag.Parse()
-
-	var cfgEnv server.MetricServerConfig
-
-	if err := env.Parse(&cfgEnv); err != nil {
-		log.Fatalf("cant load metricServer envs: %e", err)
-	}
-
-	if len(cfgEnv.Host) != 0 {
-		cfg.Host = cfgEnv.Host
-	}
-	if len(cfgEnv.StoreFile) != 0 {
-		cfg.StoreFile = cfgEnv.StoreFile
-	}
-	if len(os.Getenv("RESTORE")) != 0 {
-		cfg.Restore = cfgEnv.Restore
-	}
-	if len(os.Getenv("STORE_INTERVAL")) != 0 {
-		cfg.StoreInterval = cfgEnv.StoreInterval
-	}
-
-}
-
 func main() {
-	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
-		return
+
+	cfg, err := config.InitMetricServerConfig()
+	if err != nil {
+		log.Fatalf("cant start server :%e", err)
 	}
 
-	storage := st.NewMapStorage()
+	if err := json.NewEncoder(log.Writer()).Encode(cfg); err != nil {
+		log.Fatal("encoder err")
+	}
 
-	if len(cfg.StoreFile) != 0 {
-		if cfg.Restore {
-			log.Printf("Restore from file %s\r", cfg.StoreFile)
-			err := storage.LoadFromFile(cfg.StoreFile)
+	var storage repositories.MetricSaver
+	var mapStorage *st.MapStorage
 
-			if err != nil {
-				log.Printf("cant load from file %s: %e\n", cfg.StoreFile, err)
-			}
+	if len(cfg.DatabaseDsn) != 0 {
+		storage, err = db.NewDBStorage(cfg.DatabaseDsn)
+		if err != nil {
+			log.Fatalf("error while init DB storage: %e", err)
 		}
-
-		saveTicker := time.NewTicker(cfg.StoreInterval)
-
-		go func(ticker *time.Ticker, storage repositories.MetricSaver, filepath string) {
-			for {
-				select {
-				case <-ticker.C:
-					if err := storage.SaveToFile(filepath); err != nil {
-						log.Fatalf("cant save to file\"%s\", err:%e", filepath, err)
-					}
-				default:
-					time.Sleep(1 * time.Second)
-				}
-			}
-		}(saveTicker, storage, cfg.StoreFile)
-
 	} else {
-		log.Println("function \"Save to file\" is turned off")
+		mapStorage = st.NewMapStorage()
+		err = mapStorage.Prepare(cfg)
+		storage = repositories.MetricSaver(mapStorage)
+		if err != nil {
+			log.Fatalf("error while init map storage: %e", err)
+		}
 	}
 
 	metricServer, err := server.NewMetricServer(cfg, storage)
@@ -96,9 +55,13 @@ func main() {
 		syscall.SIGQUIT)
 
 	<-sigChan
-	log.Println("save on exit")
-	if err := storage.SaveToFile(cfg.StoreFile); err != nil {
-		log.Println(err)
-		return
+	if len(cfg.StoreFile) != 0 {
+		log.Println("save on exit")
+		if mapStorage != nil {
+			if err := mapStorage.Dump(); err != nil {
+				log.Println(err)
+				return
+			}
+		}
 	}
 }

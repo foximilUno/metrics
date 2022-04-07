@@ -1,10 +1,15 @@
 package handlers
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/foximilUno/metrics/internal/config"
 	"github.com/foximilUno/metrics/internal/repositories"
+	"github.com/foximilUno/metrics/internal/secure"
 	"github.com/foximilUno/metrics/internal/types"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"reflect"
@@ -27,291 +32,352 @@ type ResultError struct {
 	Error string
 }
 
-func SendErrorWithString(w http.ResponseWriter, stringVal string) error {
+func sendError(httpStatusCode int, w http.ResponseWriter, stringVal string) {
+	w.WriteHeader(httpStatusCode)
 	err := json.NewEncoder(w).Encode(
 		&ResultError{
 			stringVal,
 		})
 	if err != nil {
-		return err
+		log.Println(err)
+	}
+}
+
+func readNewMetricByJSON(r *http.Request) (*types.Metrics, error) {
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("can't read request body: %e", err)
+	}
+	defer r.Body.Close()
+	var metric *types.Metrics
+	err = json.Unmarshal(bodyBytes, &metric)
+
+	if err != nil {
+		return nil, fmt.Errorf("can't unmarshall request body: %e", err)
+	}
+
+	return metric, nil
+}
+
+func readBatchMetricByJSON(r *http.Request) ([]*types.Metrics, error) {
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("can't read request body: %e", err)
+	}
+	defer r.Body.Close()
+	var metrics []*types.Metrics
+	err = json.Unmarshal(bodyBytes, &metrics)
+	if err != nil {
+		return nil, fmt.Errorf("can't unmarshall request body: %e", err)
+	}
+	return metrics, nil
+}
+
+func readNewMetricByTextPlain(pathArray []string) (*types.Metrics, error) {
+	metric := &types.Metrics{}
+
+	if len(pathArray[2]) == 0 {
+		return nil, fmt.Errorf("metric name cant be empty")
+	}
+
+	metric.MType = pathArray[1]
+	metric.ID = pathArray[2]
+	if len(pathArray) == 4 {
+		switch metric.MType {
+		case "gauge":
+			val, err := strconv.ParseFloat(pathArray[3], 64)
+			if err != nil {
+				return nil, err
+			}
+			metric.Value = &val
+		case "counter":
+			val, err := strconv.ParseInt(pathArray[3], 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			metric.Delta = &val
+		}
+	}
+	return metric, nil
+}
+
+func returnData(w http.ResponseWriter, r *http.Request, data []byte, contentType string) error {
+	var err error
+	w.Header().Set("Content-Type", contentType)
+	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		var b bytes.Buffer
+		gzC := gzip.NewWriter(&b)
+
+		_, err = gzC.Write(data)
+		if err != nil {
+			return err
+		}
+		err = gzC.Close()
+		if err != nil {
+			return err
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		_, err = w.Write(b.Bytes())
+	} else {
+
+		_, err = w.Write(data)
+	}
+	return err
+}
+
+func commonSaveMetric(metric *types.Metrics, s repositories.MetricSaver) (int, error) {
+
+	if _, ok := allowedTypes[metric.MType]; !ok {
+		return http.StatusNotImplemented,
+			fmt.Errorf("bad request: %s cant be, use %s",
+				metric.MType,
+				reflect.ValueOf(allowedTypes).MapKeys())
+	}
+
+	if err := s.SaveMetric(metric); err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	log.Printf("invoked update metric")
+	if err := json.NewEncoder(log.Writer()).Encode(metric); err != nil {
+		fmt.Println("cant encode metric object")
+	}
+	return 0, nil
+}
+
+// commonGetMetric return string value of metric and save metric value/delta to parameter object
+func commonGetMetric(metric *types.Metrics, s repositories.MetricSaver) (string, int, error) {
+	var result string
+	var err error
+	switch metric.MType {
+	case "gauge":
+		result, err = s.GetGaugeMetricAsString(metric.ID)
+		if err != nil {
+			return "", http.StatusNotFound, err
+		}
+		val, err := strconv.ParseFloat(result, 64)
+		if err != nil {
+			return "", http.StatusInternalServerError, err
+		}
+		metric.Value = &val
+	case "counter":
+		result, err = s.GetCounterMetricAsString(metric.ID)
+		if err != nil {
+			return "", http.StatusNotFound, err
+		}
+		val, err := strconv.ParseInt(result, 10, 64)
+		if err != nil {
+			return "", http.StatusInternalServerError, err
+		}
+		metric.Delta = &val
+	default:
+		return "",
+			http.StatusNotImplemented,
+			fmt.Errorf("bad request: %s cant be, use %s",
+				metric.MType,
+				reflect.ValueOf(allowedTypes).MapKeys())
+	}
+	return result, 0, nil
+}
+
+func validateMetric(metric *types.Metrics) error {
+
+	if len(metric.ID) == 0 {
+		return fmt.Errorf("metric ID must have not empty value")
+	}
+
+	if len(metric.MType) == 0 {
+		return fmt.Errorf("metric type must have not empty value")
+	}
+
+	if metric.MType == "gauge" && metric.Value == nil {
+		return fmt.Errorf("metric \"%s\" with type \"gauge\" without value", metric.ID)
+	}
+	if metric.MType == "counter" && metric.Delta == nil {
+		return fmt.Errorf("metric \"%s\" with type \"counter\" without value", metric.ID)
 	}
 	return nil
 }
 
-func SendErrorWithError(w http.ResponseWriter, errorVal error) error {
-	err := json.NewEncoder(w).Encode(
-		&ResultError{
-			errorVal.Error(),
-		})
-	if err != nil {
-		return err
-	}
-	return nil
+func isNeedEncryptOrDecrypt(cfg *config.MetricServerConfig) bool {
+	return len(cfg.Key) > 0
 }
 
 func SaveMetricsViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		//check method only POST
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		//check elements in path
+		//check valid path
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
-
 		if len(segments) != 4 {
 			http.Error(w, "path must be pattern like /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
 			return
 		}
 
-		if len(segments[2]) == 0 {
-			http.Error(w, "metric name cant be empty", http.StatusBadRequest)
-		}
-
-		switch segments[1] {
-		case "gauge":
-			val, err := strconv.ParseFloat(segments[3], 64)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("%s некорректного типа: counter: float64", segments[2]), http.StatusBadRequest)
-				return
-			}
-			s.SaveGauge(segments[2], val)
-		case "counter":
-			val, err := strconv.ParseInt(segments[3], 10, 64)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("%s некорректного типа: counter: int64", segments[2]), http.StatusBadRequest)
-				return
-			}
-			err = s.SaveCounter(segments[2], val)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-		default:
-			http.Error(w, fmt.Sprintf("Bad request: %s cant be, use %s", segments[1], reflect.ValueOf(allowedTypes).MapKeys()), http.StatusNotImplemented)
+		//extract metric
+		metric, err := readNewMetricByTextPlain(segments)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		log.Printf("invoked update metric with type \"%s\" witn name \"%s\" with value \"%s\"", segments[1], segments[2], segments[3])
-
+		//try save metric
+		if status, err := commonSaveMetric(metric, s); err != nil {
+			sendError(status, w, err.Error())
+			return
+		}
 		w.WriteHeader(200)
 	}
 }
 
-func SaveMetricsViaJSON(s repositories.MetricSaver) http.HandlerFunc {
+func SaveMetricsViaJSON(s repositories.MetricSaver, cfg *config.MetricServerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			err := SendErrorWithString(w, "only POST allowed")
-			if err != nil {
-				log.Println(err)
-			}
-			return
-		}
-
-		metric, err := types.ReadNewMetric(r)
-
+		//extract object
+		metric, err := readNewMetricByJSON(r)
 		if err != nil {
-			log.Println("error reaDMetric:", err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-			err := SendErrorWithError(w, err)
-			if err != nil {
-				log.Println(err)
-			}
+			sendError(http.StatusBadRequest, w, err.Error())
 			return
 		}
 
-		if metric.Delta == nil && metric.Value == nil {
-			w.WriteHeader(http.StatusBadRequest)
-
-			err := SendErrorWithString(w, "delta or value must not be empty")
-			if err != nil {
-				log.Println(err)
-			}
+		//check for valid metrics
+		if err = validateMetric(metric); err != nil {
+			sendError(http.StatusBadRequest, w, err.Error())
 			return
 		}
 
-		switch metric.MType {
-		case "gauge":
-			if metric.Value == nil {
-				w.WriteHeader(http.StatusBadRequest)
-				err := SendErrorWithString(w, "value cant be empty")
-				if err != nil {
-					log.Println(err)
-				}
-				return
-			}
-			s.SaveGauge(metric.ID, *metric.Value)
-		case "counter":
-			if metric.Delta == nil {
-				w.WriteHeader(http.StatusBadRequest)
-				err := SendErrorWithString(w, "delta cant be empty")
-				if err != nil {
-					log.Println(err)
-				}
-				return
-			}
-			err = s.SaveCounter(metric.ID, *metric.Delta)
+		//check hash if need
+		if isNeedEncryptOrDecrypt(cfg) {
+			isValid, err := secure.IsValidHash(metric.Format(), metric.Hash, cfg.Key)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-
-				err := SendErrorWithError(w, err)
-				if err != nil {
-					log.Println(err)
-				}
+				sendError(http.StatusBadRequest, w, err.Error())
 				return
 			}
-		default:
-			w.WriteHeader(http.StatusNotImplemented)
-
-			err := SendErrorWithString(w, fmt.Sprintf("bad request: %s cant be, use %s", metric.ID, reflect.ValueOf(allowedTypes).MapKeys()))
-			if err != nil {
-				log.Println(err)
+			if !isValid {
+				sendError(http.StatusBadRequest, w, "hash is not equal handled metric")
+				return
 			}
-			return
 		}
 
-		log.Printf("invoked update metric with type \"%s\" witn name \"%s\" with value \"%d\"|\"%d\"", metric.MType, metric.ID, metric.Value, metric.Delta)
-
+		if status, err := commonSaveMetric(metric, s); err != nil {
+			sendError(status, w, err.Error())
+		}
 		w.WriteHeader(200)
 	}
+}
+
+func SaveBatchMetrics(s repositories.MetricSaver, cfg *config.MetricServerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		metrics, err := readBatchMetricByJSON(r)
+		if err != nil {
+			sendError(http.StatusInternalServerError, w, err.Error())
+			return
+		}
+
+		//check for empty
+		if len(metrics) == 0 {
+			sendError(http.StatusBadRequest, w, fmt.Errorf("array is empty").Error())
+			return
+		}
+
+		//check for valid metrics
+		for _, metric := range metrics {
+			if err = validateMetric(metric); err != nil {
+				sendError(http.StatusBadRequest, w, err.Error())
+				return
+			}
+			log.Printf("invoked update metric")
+			if err := json.NewEncoder(log.Writer()).Encode(metric); err != nil {
+				fmt.Println("cant encode metric object")
+			}
+		}
+
+		//check hash if need
+		if isNeedEncryptOrDecrypt(cfg) {
+			for _, metric := range metrics {
+				isValid, err := secure.IsValidHash(metric.Format(), metric.Hash, cfg.Key)
+				if err != nil {
+					sendError(http.StatusBadRequest, w, err.Error())
+					return
+				}
+				if !isValid {
+					sendError(http.StatusBadRequest, w, "hash is not equal handled metric")
+					return
+				}
+			}
+		}
+
+		// save with transaction
+		if err = s.SaveBatchMetrics(metrics); err != nil {
+			sendError(http.StatusInternalServerError, w, err.Error())
+		}
+		w.WriteHeader(200)
+	}
+
 }
 
 func GetMetricViaTextPlain(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
-			return
-		}
 
 		//check elements in path
 		segments := strings.Split(strings.TrimLeft(r.URL.Path, "/"), "/")
-
 		if len(segments) != 3 {
 			http.Error(w, "path must be pattern like /value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>", http.StatusBadRequest)
 			return
 		}
 
-		if len(segments[2]) == 0 {
-			http.Error(w, "metric name cant be empty", http.StatusBadRequest)
+		metric, err := readNewMetricByTextPlain(segments)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		var result string
-		var err error
-		switch segments[1] {
-		case "gauge":
-			result, err = s.GetGaugeMetricAsString(segments[2])
-		case "counter":
-			result, err = s.GetCounterMetricAsString(segments[2])
-		default:
-			http.Error(w, fmt.Sprintf("Bad request: %s cant be, use %s", segments[1], reflect.ValueOf(allowedTypes).MapKeys()), http.StatusNotImplemented)
+		strResult, httpStatus, err := commonGetMetric(metric, s)
+		if err != nil {
+			sendError(httpStatus, w, err.Error())
 			return
 		}
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-		}
-		_, err = w.Write([]byte(result))
-		if err != nil {
-			return
-		}
+
 		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(strResult))
+		if err != nil {
+			sendError(http.StatusInternalServerError, w, "error while writing")
+		}
 	}
 }
 
-func GetMetricViaJSON(s repositories.MetricSaver) http.HandlerFunc {
+func GetMetricViaJSON(s repositories.MetricSaver, cfg *config.MetricServerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-
-			err := SendErrorWithString(w, "only POST allowed")
-			if err != nil {
-				log.Println(err)
-			}
-			return
-		}
-
-		metric, err := types.ReadNewMetric(r)
+		metric, err := readNewMetricByJSON(r)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-
-			err := SendErrorWithError(w, err)
-			if err != nil {
-				log.Println(err)
-			}
+			sendError(http.StatusBadRequest, w, err.Error())
 			return
 		}
 
-		var result string
-		switch metric.MType {
-		case "gauge":
-			result, err = s.GetGaugeMetricAsString(metric.ID)
-			if err != nil {
-				w.WriteHeader(http.StatusNotFound)
-
-				err := SendErrorWithError(w, err)
-				if err != nil {
-					log.Println(err)
-				}
-				return
-			}
-			val, err := strconv.ParseFloat(result, 64)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-
-				err := SendErrorWithError(w, err)
-				if err != nil {
-					log.Println(err)
-				}
-				return
-			}
-			metric.Value = &val
-		case "counter":
-			result, err = s.GetCounterMetricAsString(metric.ID)
-			if err != nil {
-				w.WriteHeader(http.StatusNotFound)
-				err := SendErrorWithError(w, err)
-				if err != nil {
-					log.Println(err)
-				}
-				return
-			}
-			val, err := strconv.ParseInt(result, 10, 64)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				err := SendErrorWithError(w, err)
-				if err != nil {
-					log.Println(err)
-				}
-				return
-			}
-			metric.Delta = &val
-		default:
-			w.WriteHeader(http.StatusNotImplemented)
-
-			err := SendErrorWithString(w, fmt.Sprintf("bad request: %s cant be, use %s", metric.MType, reflect.ValueOf(allowedTypes).MapKeys()))
-			if err != nil {
-				log.Println(err)
-			}
+		_, httpStatus, err := commonGetMetric(metric, s)
+		if err != nil {
+			sendError(httpStatus, w, err.Error())
 			return
+		}
+
+		if isNeedEncryptOrDecrypt(cfg) {
+			hash, err := secure.EncryptMetric(metric, cfg.Key)
+			if err != nil {
+				sendError(http.StatusInternalServerError, w, err.Error())
+				return
+			}
+			metric.Hash = hash
 		}
 
 		bb, err := json.Marshal(metric)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			err := SendErrorWithError(w, err)
-			if err != nil {
-				log.Println(err)
-			}
+			sendError(http.StatusInternalServerError, w, err.Error())
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, err = w.Write(bb)
+		err = returnData(w, r, bb, "application/json")
 		if err != nil {
+			sendError(http.StatusInternalServerError, w, "error while zipping")
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -319,19 +385,27 @@ func GetMetricsTable(s repositories.MetricSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var response []byte
 		response = append(response, []byte(preHTML)...)
-		for _, v := range s.GetGaugeMetricNames() {
+		for _, v := range s.GetMetricNamesByTypes("gauge") {
 			n, _ := s.GetGaugeMetricAsString(v)
 			response = append(response, []byte(fmt.Sprintf(trPattern, "gauge", v, v, n))...)
 		}
-		for _, v := range s.GetCounterMetricNames() {
+		for _, v := range s.GetMetricNamesByTypes("counter") {
 			n, _ := s.GetCounterMetricAsString(v)
 			response = append(response, []byte(fmt.Sprintf(trPattern, "counter", v, v, n))...)
 		}
 		response = append(response, []byte(postHTML)...)
-		_, err := w.Write(response)
+		err := returnData(w, r, response, "text/html")
 		if err != nil {
+			sendError(http.StatusInternalServerError, w, "error while zipping")
 			return
 		}
-		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func CheckBatchSupport(s repositories.MetricSaver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.IsBatchSupports() {
+			w.WriteHeader(http.StatusNotImplemented)
+		}
 	}
 }

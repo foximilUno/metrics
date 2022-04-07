@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/foximilUno/metrics/internal/config"
+	"github.com/foximilUno/metrics/internal/secure"
 	"github.com/foximilUno/metrics/internal/types"
 	"log"
 	"math/rand"
@@ -16,6 +18,11 @@ import (
 const (
 	gauge   = "gauge"
 	counter = "counter"
+
+	//available paths
+	updatePath      = "/update"
+	batchUpdatePath = "/updates/"
+	batchSupports   = "/batchSupport"
 )
 
 type MetricEntity struct {
@@ -28,21 +35,23 @@ type collector struct {
 	baseURL string
 	data    map[string]*MetricEntity
 	client  *http.Client
+	cfg     *config.Config
 }
 
-func NewMetricCollector(URL string) *collector {
+func NewMetricCollector(cfg *config.Config) *collector {
 	var baseURL string
 	//contains http/https
-	if strings.Contains(URL, "http") {
-		baseURL = URL
+	if strings.Contains(cfg.URL, "http") {
+		baseURL = cfg.URL
 	} else {
-		baseURL = "http://" + URL
+		baseURL = "http://" + cfg.URL
 	}
 
 	return &collector{
 		baseURL,
 		make(map[string]*MetricEntity),
 		&http.Client{},
+		cfg,
 	}
 }
 
@@ -105,10 +114,11 @@ func (mc *collector) Collect() {
 func (mc *collector) Report() {
 	log.Println("Report to server collect data")
 
-	for _, v := range mc.data {
-		currentURL := mc.baseURL + "/update/"
+	var metrics []*types.Metrics
 
-		m := types.Metrics{
+	for _, v := range mc.data {
+
+		m := &types.Metrics{
 			ID:    v.entityName,
 			MType: v.entityType,
 		}
@@ -123,34 +133,79 @@ func (mc *collector) Report() {
 		default:
 			panic(fmt.Sprintf("unsupported for report type of metric: %s", v.entityType))
 		}
-		b, err := json.Marshal(m)
+		if len(mc.cfg.Key) > 0 {
+			encryptVal, err := secure.EncryptMetric(m, mc.cfg.Key)
+			if err != nil {
+				log.Fatalf("cant encrypt metric %v: %e", m, err)
+			}
+			m.Hash = encryptVal
+		}
+
+		metrics = append(metrics, m)
+	}
+
+	if mc.isBatchSupports() {
+		b, err := json.Marshal(metrics)
 		if err != nil {
 			//TODO what to do)) just logging right now
 			log.Println("error while marshalling", err)
 		}
-
-		req, err := http.NewRequest(http.MethodPost, currentURL, bytes.NewBuffer(b))
-
-		if err != nil {
-			//TODO what to do)) just logging right now
-			log.Println("error while make request", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := mc.client.Do(req)
-
-		if err != nil {
-			//TODO what to do)) just logging right now
-			log.Printf("error while send request: %e\n", err)
+		if err := mc.doRequest(b, mc.baseURL+batchUpdatePath); err != nil {
+			log.Printf("error: %e", err)
 			return
 		}
-
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("server return error for url %s %d\n", currentURL, resp.StatusCode)
+	} else {
+		currentURL := mc.baseURL + updatePath
+		for _, m := range metrics {
+			b, err := json.Marshal(m)
+			if err != nil {
+				//TODO what to do)) just logging right now
+				log.Println("error while marshalling", err)
+			}
+			if err := mc.doRequest(b, currentURL); err != nil {
+				log.Printf("error: %e", err)
+				return
+			}
 		}
 	}
 	log.Println("Reports ended")
+}
 
+//isBatchUpdateExists checks that path /updates available
+func (mc *collector) isBatchSupports() bool {
+	rq, err := http.NewRequest(http.MethodGet, mc.baseURL+batchSupports, nil)
+	if err != nil {
+		return false
+	}
+	r, err := mc.client.Do(rq)
+	if err != nil {
+		return false
+	}
+	defer r.Body.Close()
+	return r.StatusCode == http.StatusOK
+}
+
+func (mc *collector) doRequest(b []byte, currentURL string) error {
+
+	req, err := http.NewRequest(http.MethodPost, currentURL, bytes.NewBuffer(b))
+
+	if err != nil {
+		//TODO what to do)) just logging right now
+		return fmt.Errorf("error while make request: %e", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := mc.client.Do(req)
+
+	if err != nil {
+		//TODO what to do)) just logging right now
+		return fmt.Errorf("error while send request: %e", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server return error for url %s %d", currentURL, resp.StatusCode)
+	}
+	return nil
 }

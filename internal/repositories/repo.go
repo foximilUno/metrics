@@ -1,12 +1,14 @@
 package repositories
 
+import (
+	"github.com/foximilUno/metrics/internal/types"
+)
+
 type MetricSaver interface {
-	LoadFromFile(filename string) error
-	SaveToFile(filename string) error
-	SaveGauge(name string, val float64)
-	SaveCounter(name string, val int64) error
+	SaveMetric(metric *types.Metrics) error
 	GetGaugeMetricAsString(name string) (string, error)
 	GetCounterMetricAsString(name string) (string, error)
-	GetGaugeMetricNames() []string
-	GetCounterMetricNames() []string
+	GetMetricNamesByTypes(metricType string) []string
+	SaveBatchMetrics(metrics []*types.Metrics) error
+	IsBatchSupports() bool
 }

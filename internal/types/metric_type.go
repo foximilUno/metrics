@@ -1,10 +1,8 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	"log"
 )
 
 type Metrics struct {
@@ -12,19 +10,47 @@ type Metrics struct {
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+	Hash  string   `json:"hash,omitempty"`  // значение хеш-функции
 }
 
-func ReadNewMetric(r *http.Request) (*Metrics, error) {
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, fmt.Errorf("can't read request body: %e", err)
+func (m *Metrics) Equal(otherMetric *Metrics) bool {
+	var compers bool
+	switch m.MType {
+	case "gauge":
+		if m.Value == nil && otherMetric.Value == nil {
+			compers = true
+		} else if m.Value != nil && otherMetric.Value != nil {
+			compers = *m.Value == *otherMetric.Value
+		} else {
+			compers = false
+		}
+	case "counter":
+		if m.Delta == nil && otherMetric.Delta == nil {
+			compers = true
+		} else if m.Delta != nil && otherMetric.Delta != nil {
+			compers = *m.Delta == *otherMetric.Delta
+		} else {
+			compers = false
+		}
+	default:
+		log.Fatalf("need decribe new type=%s", m.MType)
 	}
-	defer r.Body.Close()
-	var metric *Metrics
-	err = json.Unmarshal(bodyBytes, &metric)
 
-	if err != nil {
-		return nil, fmt.Errorf("can't unmarshall request body: %e", err)
+	return m.ID == otherMetric.ID &&
+		m.MType == otherMetric.MType &&
+		compers
+}
+
+//TODO тут конечно плохо и должен быть какой то еще вариант по дефолту или error
+func (m *Metrics) Format() string {
+	var formatStr string
+	switch m.MType {
+	case "gauge":
+		newVal := *m.Value
+		formatStr = fmt.Sprintf("%s:gauge:%f", m.ID, newVal)
+	case "counter":
+		newVal := *m.Delta
+		formatStr = fmt.Sprintf("%s:counter:%d", m.ID, newVal)
 	}
-	return metric, nil
+	return formatStr
 }
