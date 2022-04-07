@@ -79,7 +79,9 @@ func main() {
 				log.Println(" shutdown collect additional")
 				return
 			case <-ch:
-				mc.CollectAdditional()
+				if err := mc.CollectAdditional(); err != nil {
+					log.Println("error while collect additional", err)
+				}
 			}
 		}
 	}(ctx, collectAdditionalCh)

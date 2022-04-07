@@ -223,10 +223,20 @@ func (mc *collector) doRequest(b []byte, currentURL string) error {
 	return nil
 }
 
-func (mc *collector) CollectAdditional() {
-	var stats mem.VirtualMemoryStat
-	var cpuStats cpu.InfoStat
+func (mc *collector) CollectAdditional() error {
+	var err error
+	stats, err := mem.VirtualMemory()
+
+	if err != nil {
+		return err
+	}
+	cpuStats, err := cpu.Times(true)
+	if err != nil {
+		return err
+	}
 	mc.addGauge("TotalMemory", stats.Total)
 	mc.addGauge("FreeMemory", stats.Free)
-	mc.addGauge("CPUutilization1", uint64(cpuStats.CPU))
+	//хз как посчититаь utilization поэтому берем Idle
+	mc.addGauge("CPUutilization1", uint64(cpuStats[0].Idle))
+	return err
 }
