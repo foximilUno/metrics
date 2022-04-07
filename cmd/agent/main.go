@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/foximilUno/metrics/internal/collector"
 	"github.com/foximilUno/metrics/internal/config"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -37,16 +39,72 @@ func main() {
 	defer reportTicker.Stop()
 
 	rand.Seed(time.Now().UnixNano())
-	mc := collector.NewMetricCollector(cfg)
-	for {
-		select {
-		case <-sigChan:
-			log.Println("Agent successfully shutdown")
-			return
-		case <-pollTicker.C:
-			mc.Collect()
-		case <-reportTicker.C:
-			mc.Report()
+	mc := collector.NewMetricCollector(cfg).WithClient(&http.Client{Timeout: 3 * time.Second})
+	ctx, cancel := context.WithCancel(context.Background())
+
+	collectCh := make(chan time.Time)
+	collectAdditionalCh := make(chan time.Time)
+
+	//fanout goroutine
+	go func(ctx2 context.Context, ch <-chan time.Time) {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println(" shutdown broadcaster")
+				return
+			case v := <-ch:
+				collectCh <- v
+				collectAdditionalCh <- v
+			}
 		}
+	}(ctx, pollTicker.C)
+
+	//collect std goroutine
+	go func(ctx2 context.Context, ch <-chan time.Time) {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println(" shutdown collect")
+				return
+			case <-ch:
+				mc.Collect()
+			}
+		}
+	}(ctx, collectCh)
+
+	go func(ctx2 context.Context, ch <-chan time.Time) {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println(" shutdown collect additional")
+				return
+			case <-ch:
+				if err := mc.CollectAdditional(); err != nil {
+					log.Println("error while collect additional", err)
+				}
+			}
+		}
+	}(ctx, collectAdditionalCh)
+
+	//report goroutine
+	go func(ctx2 context.Context, ch <-chan time.Time) {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println(" shutdown report")
+				return
+			case <-ch:
+				err = mc.Report()
+				if err != nil {
+					log.Printf("error while report: %s", err)
+				}
+			}
+		}
+	}(ctx, reportTicker.C)
+
+	for range sigChan {
+		log.Println("Agent successfully shutdown")
+		cancel()
+		return
 	}
 }
